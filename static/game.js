@@ -3,21 +3,24 @@ var socket = io();
 // Local variables
 var playerName = "";
 var shutdown = false;
+var initialised = false;
 
 
 document.getElementById('userInput').focus();   // Focus the username field
 
-/*
-===========================================================================
+
+
 // Initialising the canvas variable
 var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
-canvas.width = 3000;
-canvas.height = 2000;
-console.log("canvas width = " + document.getElementById('hud').value + "---- canvas height = " + canvas.style.height);
-context.font = "10px Arial";
-===========================================================================
-*/
+
+
+
+canvas.width = 1500;
+canvas.height = 700;
+//console.log("canvas width = " + document.getElementById('hud').value + "---- canvas height = " + canvas.style.height);
+context.font = "20px Arial";
+
 
 // Player number updated
 socket.on('playerNum', function(data) {
@@ -78,13 +81,38 @@ function disconnect() {
 	socket.disconnect();
 }
 
+// Draw gamestate when received from server
+socket.on('gameState', function(data) {
+	//console.log("received game state");
+	//console.log(data);
+	var stickman = new Image();
+	stickman.src = "static/stickman.png";
 
-/*
-// Update the whole canvas locally
-function updateCanvas() {
 	context.clearRect(0, 0, canvas.width, canvas.height);
-	drawCoords();
-	drawWords();
-	drawMouse();
-}
-*/
+	for (i in data) {
+		context.drawImage(stickman, data[i].xPos-stickman.width/2, data[i].yPos-stickman.height/2);
+		context.fillText(data[i].name, data[i].xPos-stickman.width/2, data[i].yPos+stickman.height/2+40);
+
+		context.fillText("xPos: " + data[i].xPos, data[i].xPos-stickman.width/2, data[i].yPos+stickman.height/2+70);
+		context.fillText("yPos: " + data[i].yPos, data[i].xPos-stickman.width/2, data[i].yPos+stickman.height/2+90);
+	}
+	//console.log(data);
+});
+
+// Let player know we have been initialised properly
+socket.on('initDone', function() { 
+	initialised = true;
+});
+
+
+
+document.addEventListener("click", function(event) {
+	if (initialised) {
+		var coords = {
+			x: event.offsetX,
+			y: event.offsetY
+		};
+		console.log(coords);
+		socket.emit('movement', coords);
+	}
+});

@@ -1,3 +1,6 @@
+var port = 6969;
+var ip = "0.0.0.0";
+
 // Dependencies
 var express = require('express');
 var http = require('http');
@@ -9,7 +12,7 @@ var server = http.Server(app);
 var io = socketIO(server);
 
 
-app.set('port', (process.env.PORT || 6969));
+app.set('port', (process.env.PORT || port));
 app.use('/static', express.static(__dirname + '/static'));
 
 // Routing
@@ -18,12 +21,13 @@ app.get('/', function(request, response) {
 });
 
 // Starts the server
-server.listen(app.get('port'), function() {
+server.listen(app.get('port'), ip, function() {
   console.log(`Starting server on port ${app.get('port')}`);
 });
 
 // Variables
-playerNum = 0;
+var playerNum = 0;
+var playerList = {};
 
 // Shut server down gracefully upon CTRL + C or interrupt
 process.on('SIGINT', function() {
@@ -32,7 +36,7 @@ process.on('SIGINT', function() {
 	process.exit()
 });
 
-// Handles new player connecitons
+// Handles player connections
 io.on('connection', function(socket) {
 
 	// New player submitted their name
@@ -41,6 +45,19 @@ io.on('connection', function(socket) {
 			playerNum++;
 	    	console.log("[" + data + "] has joined with id [" + socket.id + "] ------------- total players online = " + playerNum);
 			io.sockets.emit('playerNum', playerNum);   // Update players on player count
+
+			// Initialise information in playerList
+			var playerInfo = {
+				name: data,
+				xPos: 100,
+				yPos: 100,
+				xPosDes: 0,
+				yPosDes: 0
+			};
+			playerList[socket.id] = playerInfo;
+			socket.emit('initDone');
+			socket.emit('gameState', playerList);
+			console.log(data);	
 
 		// Error if null username submitted
 		} else {
@@ -51,8 +68,47 @@ io.on('connection', function(socket) {
 
 	// Disconnect player and update players on new player count
 	socket.on('disconnect', function() {
-		playerNum--;
-		console.log("player with id [" + socket.id + "] DISCONNECTED!!! ---------- players remaining = " + playerNum);
-		io.sockets.emit('playerNum', playerNum);
+		if (playerList[socket.id] != undefined) {
+			playerNum--;
+			console.log("player with id [" + socket.id + "] DISCONNECTED!!! ---------- players remaining = " + playerNum);
+			io.sockets.emit('playerNum', playerNum);
+			delete playerList[socket.id];
+		}
 	});
+
+	// Player selected a spot to move to
+	socket.on('movement', function(data) {
+		if (playerList[socket.id] != undefined) {
+			console.log(data);
+			console.log("socket id = " + socket.id);
+			playerList[socket.id].xPosDes = data.x;
+			playerList[socket.id].yPosDes = data.y;
+			console.log(playerList);
+		}
+	});
+
 });
+
+// TRY to send gamestate at 32 ticks
+setInterval(function() {
+	var speed = 8;
+	for (var i in playerList) {
+		if (Math.abs(playerList[i].xPosDes - playerList[i].xPos) > speed) {
+			if (playerList[i].xPos < playerList[i].xPosDes) { playerList[i].xPos += speed; } 
+			else if (playerList[i].xPos > playerList[i].xPosDes) { playerList[i].xPos -= speed; }
+		} else if (Math.abs(playerList[i].xPosDes - playerList[i].xPos) > 0) {
+			playerList[i].xPos = playerList[i].xPosDes;
+		}
+		if (Math.abs(playerList[i].yPosDes - playerList[i].yPos) > speed) {
+			if (playerList[i].yPos > playerList[i].yPosDes) { playerList[i].yPos -= speed; }
+			else if (playerList[i].yPos < playerList[i].yPosDes) { playerList[i].yPos += speed; }
+		} else if (Math.abs(playerList[i].yPosDes - playerList[i].yPos) > 0) {
+			playerList[i].yPos = playerList[i].yPosDes;
+		}
+	}
+
+  	io.sockets.emit('gameState', playerList);
+}, 1000/30);
+
+
+
