@@ -12,6 +12,7 @@ var server = http.Server(app);
 var io = socketIO(server);
 
 
+
 app.set('port', (process.env.PORT || port));
 app.use('/static', express.static(__dirname + '/static'));
 
@@ -36,28 +37,32 @@ process.on('SIGINT', function() {
 	process.exit()
 });
 
+
 // Handles player connections
 io.on('connection', function(socket) {
 
-	// New player submitted their name
+	// New player joined & submitted their name
 	socket.on('new player', function(data) {
 		if (data) {
-			playerNum++;
-	    	console.log("[" + data + "] has joined with id [" + socket.id + "] ------------- total players online = " + playerNum);
-			io.sockets.emit('playerNum', playerNum);   // Update players on player count
 
-			// Initialise information in playerList
+			// Setup new player's location information
 			var playerInfo = {
 				name: data,
 				xPos: 100,
-				yPos: 100,
-				xPosDes: 0,
-				yPosDes: 0
+				yPos: 100
 			};
+
+			// Add new player into the server information and give player the server state
 			playerList[socket.id] = playerInfo;
 			socket.emit('initDone');
 			socket.emit('gameState', playerList);
 			console.log(data);	
+
+			// Update every client about the new player number
+			playerNum++;
+			io.sockets.emit('playerNum', playerNum);
+			console.log("[" + data + "] has joined with id [" + socket.id + "] ------------- total players online = " + playerNum);
+
 
 		// Error if null username submitted
 		} else {
@@ -81,34 +86,23 @@ io.on('connection', function(socket) {
 		if (playerList[socket.id] != undefined) {
 			console.log(data);
 			console.log("socket id = " + socket.id);
-			playerList[socket.id].xPosDes = data.x;
-			playerList[socket.id].yPosDes = data.y;
+
+			//=========================================================
+			// Check if location is valid <- do once you implement location
+			// CHANGE ..... its sending its current position
+
+			playerList[socket.id].xPos = data.x;
+			playerList[socket.id].yPos = data.y;
 			console.log(playerList);
+
+			io.sockets.emit('gameState', playerList);
 		}
 	});
 
 });
 
-// TRY to send gamestate at 32 ticks
-setInterval(function() {
-	var speed = 8;
-	for (var i in playerList) {
-		if (Math.abs(playerList[i].xPosDes - playerList[i].xPos) > speed) {
-			if (playerList[i].xPos < playerList[i].xPosDes) { playerList[i].xPos += speed; } 
-			else if (playerList[i].xPos > playerList[i].xPosDes) { playerList[i].xPos -= speed; }
-		} else if (Math.abs(playerList[i].xPosDes - playerList[i].xPos) > 0) {
-			playerList[i].xPos = playerList[i].xPosDes;
-		}
-		if (Math.abs(playerList[i].yPosDes - playerList[i].yPos) > speed) {
-			if (playerList[i].yPos > playerList[i].yPosDes) { playerList[i].yPos -= speed; }
-			else if (playerList[i].yPos < playerList[i].yPosDes) { playerList[i].yPos += speed; }
-		} else if (Math.abs(playerList[i].yPosDes - playerList[i].yPos) > 0) {
-			playerList[i].yPos = playerList[i].yPosDes;
-		}
-	}
-
-  	io.sockets.emit('gameState', playerList);
-}, 1000/30);
+// Server tick interval, (1 tick every 250ms)
+//setInterval(function() {
 
 
-
+//}, 1000/4);
