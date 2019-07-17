@@ -58,6 +58,9 @@ io.on('connection', function(socket) {
 			socket.emit('gameState', playerList);
 			console.log(data);	
 
+			// Tell other players to update their local list about new player
+			socket.broadcast.emit('otherJoin', playerInfo, socket.id);
+
 			// Update every client about the new player number
 			playerNum++;
 			io.sockets.emit('playerNum', playerNum);
@@ -95,7 +98,7 @@ io.on('connection', function(socket) {
 			playerList[socket.id].yPos = data.y;
 			console.log(playerList);
 
-			io.sockets.emit('gameState', playerList);
+			socket.broadcast.emit('updateState', playerList);
 		}
 	});
 
