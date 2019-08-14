@@ -80,6 +80,7 @@ io.on('connection', function(socket) {
 			playerNum--;
 			console.log("player with id [" + socket.id + "] DISCONNECTED!!! ---------- players remaining = " + playerNum);
 			io.sockets.emit('playerNum', playerNum);
+			socket.broadcast.emit('otherLeave', socket.id);
 			delete playerList[socket.id];
 		}
 	});

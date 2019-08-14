@@ -10,7 +10,8 @@ var player = {
 	xPos: 100,
 	yPos: 100,
 	xPosDes: 100,
-	yPosDes: 100
+	yPosDes: 100,
+	moveAngle: 0
 };
 
 // Local playerList array
@@ -121,6 +122,14 @@ socket.on('otherJoin', function(data, id) {
 	}
 });
 
+// A player left, so remove them from your array
+socket.on('otherLeave', function(id) {
+	if (initialised) {
+		delete localPlayerList[id];
+	}
+});
+
+
 
 // Receive update on player's locations
 socket.on('updateState', function(data) {
@@ -142,7 +151,9 @@ document.addEventListener("click", function(event) {
 
 		player.xPosDes = event.offsetX;
 		player.yPosDes = event.offsetY;
+		player.moveAngle = Math.abs(Math.atan((Math.abs(player.yPosDes-player.yPos)/(player.xPosDes-player.xPos))));
 		console.log("I want to move to [" + player.xPosDes + " , " + player.yPosDes + "]");
+		console.log("Angle = " + player.moveAngle);
 	}
 });
 
@@ -158,7 +169,7 @@ setInterval(function() {
 				x: player.xPos,
 				y: player.yPos
 			};
-			console.log(coords);
+			//console.log(coords);
 			socket.emit('movement', coords);
 		}
 	}
@@ -174,8 +185,8 @@ setInterval(function() {
 
 		// Moves the player from current position to destination position (client side prediction)
 		var speed = 8;
-		player.xPos = calculateXPos(player.xPos, player.xPosDes, speed);
-		player.yPos = calculateYPos(player.yPos, player.yPosDes, speed);
+		player.xPos = calculateXPos(player.xPos, player.xPosDes, speed, player.moveAngle);
+		player.yPos = calculateYPos(player.yPos, player.yPosDes, speed, player.moveAngle);
 		//console.log("xPos = " + player.xPos + "     yPos = " + player.yPos);
 
 		// Draws the current player
@@ -195,6 +206,7 @@ setInterval(function() {
 		//==================================================================
 
 		// Other players have moved, interpolate their positions
+		/*
 		if (interpolate == false && otherMove.length > 0) {
 			currMove = otherMove.pop();
 			console.log("Popped off ["+ otherMove.length +"]")
@@ -241,7 +253,7 @@ setInterval(function() {
 					context.fillText("yPos: " + localPlayerList[i].yPos, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+90);
 				}
 			}
-		}
+		}*/
 	}
 }, 1000/32);
 
@@ -266,12 +278,12 @@ setInterval(function() {
 
 // Moves the player x location on the x axis
 // Given the player's current x position, destination x postion & speed
-function calculateXPos(xPos, xPosDes, speed) {
+function calculateXPos(xPos, xPosDes, speed, angle) {
 	if (Math.abs(xPosDes - xPos) > speed) {
 		if (xPos < xPosDes) {
-			return (xPos + speed);
+			return (xPos + (speed*Math.cos(angle)));
 		} else if (xPos > xPosDes) {
-			return (xPos - speed);
+			return (xPos - (speed*Math.cos(angle)));
 		}
 	} else if (Math.abs(xPosDes - xPos) > 0) {
 		return xPosDes;
@@ -282,12 +294,12 @@ function calculateXPos(xPos, xPosDes, speed) {
 
 // Moves the player y location on the y axis
 // Given the player's current y position, destination y postion & speed
-function calculateYPos(yPos, yPosDes, speed) {
+function calculateYPos(yPos, yPosDes, speed, angle) {
 	if (Math.abs(yPosDes - yPos) > speed) {
 		if (yPos < yPosDes) {
-			return (yPos + speed);
+			return (yPos + (speed*Math.sin(angle)));
 		} else if (yPos > yPosDes) {
-			return (yPos - speed);
+			return (yPos - (speed*Math.sin(angle)));
 		}
 	} else if (Math.abs(yPosDes - yPos) > 0) {
 		return yPosDes;
