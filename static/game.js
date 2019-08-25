@@ -12,7 +12,8 @@ var player = {
 	xPosDes: 100,
 	yPosDes: 100,
 	moveAngle: 0,
-	moving: false
+	moving: false,
+	chat: ""
 };
 
 // Local playerList array
@@ -21,6 +22,13 @@ var otherMove = [];
 var currMove;
 var interpolate = false;
 
+var chatLog = [];
+var displayChat = 0;
+
+var otherChat = {};
+
+var stickman = new Image();
+stickman.src = "static/stickman.png";
 
 // Focus the username field
 document.getElementById('userInput').focus();
@@ -32,10 +40,7 @@ var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
 canvas.width = 1500;
 canvas.height = 700;
-//console.log("canvas width = " + document.getElementById('hud').value + "---- canvas height = " + canvas.style.height);
 context.font = "20px Arial";
-
-
 
 
 // Submit username via enter key
@@ -140,6 +145,30 @@ socket.on('updateState', function(data) {
 	console.log("Someone is moving... [" + otherMove.length + "]");
 });
 
+// Receive chat from other player
+socket.on("playerChat", function(data) {
+
+	// Update new word to display
+	if (data.id in otherChat) {
+		console.log("updating word!!!");
+		otherChat[data.id].chat = data.msg;
+		otherChat[data.id].displayChat++;
+
+	// Setup hash for player
+	} else {
+		console.log("creating new entry in hash")
+		otherChat[data.id] = {
+			chat: data.msg,
+			displayChat: 1
+		};
+	}
+
+	setTimeout(function() {
+		otherChat[data.id].displayChat--;
+	}, 5000)
+
+	chatLog.push({id: data.id, msg: data.msg});
+});
 
 
 // Player clicked to move somewhere
@@ -156,8 +185,38 @@ document.addEventListener("click", function(event) {
 		console.log("I want to move to [" + player.xPosDes + " , " + player.yPosDes + "]   Angle = " 
 			                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
 		player.moving = true;
+
+		// Focus the chat box
+		document.getElementById('chatbox').focus();
 	}
 });
+
+
+
+// Pressing enter to send chat message
+document.onkeypress = function(event) {
+    switch (event.keyCode) {
+    	case 13:
+		console.log("Press enter for chat message");
+
+    	// Send chat message to server if not empty
+		var text = document.getElementById("chatbox").value;
+		if (text != "") {
+			console.log("Sent msg to server");
+	    	socket.emit('chat', text);
+	    	document.getElementById("chatbox").value = "";
+		}
+
+		// Prepare chat to be rendered
+		player.chat = text;
+		displayChat++;
+		setTimeout(function() {
+			displayChat--;
+		}, 5000);
+
+	    break;
+    }
+};
 
 
 // Send player position to server at every game tick
@@ -181,24 +240,42 @@ setInterval(function() {
 
 
 
-
+// Client game loop
 function mainLoop() {
 	if (initialised) {
+		context.clearRect(0, 0, canvas.width, canvas.height);
 		updatePlayerLoc();
 		drawPlayer();
 		updateDrawOtherPlayers();
+		drawPlayerChat();
+		drawOtherChat();
 	}
-	
 	requestAnimationFrame(mainLoop);
 }
 
 requestAnimationFrame(mainLoop);
 
 
+// Draw the player's chat on top of their own head
+function drawPlayerChat() {
+	if (displayChat != 0) {
+		context.fillText(player.chat, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2-30));
+	}
+}
 
 
+// Draw chat for other players
+function drawOtherChat() {
+	for (key in otherChat) {
+		if (otherChat[key].displayChat != 0) {
+			console.log("key = " + key + " xPos = " + Math.round(localPlayerList[key].xPos) + "yPos = " + Math.round(localPlayerList[key].yPos));
+			context.fillText(otherChat[key].chat, Math.round(localPlayerList[key].xPos-stickman.width/2), Math.round(localPlayerList[key].yPos-stickman.height/2-30));
+		}
+	}
+}
 
-// Update the player's location
+
+// Update the current player's location
 function updatePlayerLoc() {
 
 	// Moves the player from current position to destination position (client side prediction)
@@ -222,11 +299,7 @@ function updatePlayerLoc() {
 
 // Draw the player
 function drawPlayer() {
-
 	// Draws the current player
-	var stickman = new Image();
-	stickman.src = "static/stickman.png";
-	context.clearRect(0, 0, canvas.width, canvas.height);
 	context.drawImage(stickman, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2));
 	context.fillText(player.name, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+40));
 	context.fillText("xPos: " + Math.round(player.xPos), Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+70));
@@ -237,9 +310,6 @@ function drawPlayer() {
 
 // Update and draw other players
 function updateDrawOtherPlayers() {
-
-	var stickman = new Image();
-	stickman.src = "static/stickman.png";
 
 	// Pop the player's movement off the queue and RENDER THEM ALL!!!
 	//===================================================================
@@ -301,8 +371,6 @@ function updateDrawOtherPlayers() {
 		}
 	}
 }
-
-
 
 
 

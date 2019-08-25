@@ -29,6 +29,7 @@ server.listen(app.get('port'), ip, function() {
 // Variables
 var playerNum = 0;
 var playerList = {};
+var chatLog = [];
 
 // Shut server down gracefully upon CTRL + C or interrupt
 process.on('SIGINT', function() {
@@ -103,10 +104,18 @@ io.on('connection', function(socket) {
 		}
 	});
 
+	// Player sent a message
+	socket.on('chat', function(data) {
+		if (playerList[socket.id] != undefined) {
+			console.log("Received message[" + data + "] from player " + socket.id);
+			socket.broadcast.emit('playerChat', {
+				id: socket.id,
+				msg: data
+			});
+
+			// Log the chat into array
+			chatLog.push({id: socket.id, msg: data});
+		}
+	});
+
 });
-
-// Server tick interval, (1 tick every 250ms)
-//setInterval(function() {
-
-
-//}, 1000/4);
