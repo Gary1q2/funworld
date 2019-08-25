@@ -11,7 +11,8 @@ var player = {
 	yPos: 100,
 	xPosDes: 100,
 	yPosDes: 100,
-	moveAngle: 0
+	moveAngle: 0,
+	moving: false
 };
 
 // Local playerList array
@@ -151,9 +152,10 @@ document.addEventListener("click", function(event) {
 
 		player.xPosDes = event.offsetX;
 		player.yPosDes = event.offsetY;
-		player.moveAngle = Math.abs(Math.atan((Math.abs(player.yPosDes-player.yPos)/(player.xPosDes-player.xPos))));
-		console.log("I want to move to [" + player.xPosDes + " , " + player.yPosDes + "]");
-		console.log("Angle = " + player.moveAngle);
+		player.moveAngle = getMoveAngle(player.xPos, player.xPosDes, player.yPos, player.yPosDes);
+		console.log("I want to move to [" + player.xPosDes + " , " + player.yPosDes + "]   Angle = " 
+			                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
+		player.moving = true;
 	}
 });
 
@@ -171,6 +173,8 @@ setInterval(function() {
 			};
 			//console.log(coords);
 			socket.emit('movement', coords);
+
+			console.log("sent my movement to server...");
 		}
 	}
 }, 1000);
@@ -178,99 +182,125 @@ setInterval(function() {
 
 
 
-// Render loop - 32 ticks/sec
-setInterval(function() {
-
+function mainLoop() {
 	if (initialised) {
+		updatePlayerLoc();
+		drawPlayer();
+		updateDrawOtherPlayers();
+	}
+	
+	requestAnimationFrame(mainLoop);
+}
 
-		// Moves the player from current position to destination position (client side prediction)
-		var speed = 8;
-		player.xPos = calculateXPos(player.xPos, player.xPosDes, speed, player.moveAngle);
-		player.yPos = calculateYPos(player.yPos, player.yPosDes, speed, player.moveAngle);
-		//console.log("xPos = " + player.xPos + "     yPos = " + player.yPos);
-
-		// Draws the current player
-		var stickman = new Image();
-		stickman.src = "static/stickman.png";
-		context.clearRect(0, 0, canvas.width, canvas.height);
-		context.drawImage(stickman, player.xPos-stickman.width/2, player.yPos-stickman.height/2);
-		context.fillText(player.name, player.xPos-stickman.width/2, player.yPos+stickman.height/2+40);
-		context.fillText("xPos: " + player.xPos, player.xPos-stickman.width/2, player.yPos+stickman.height/2+70);
-		context.fillText("yPos: " + player.yPos, player.xPos-stickman.width/2, player.yPos+stickman.height/2+90);
-		
+requestAnimationFrame(mainLoop);
 
 
-		// Pop the player's movement off the queue and RENDER THEM ALL!!!
-		//===================================================================
 
-		//==================================================================
 
-		// Other players have moved, interpolate their positions
-		/*
-		if (interpolate == false && otherMove.length > 0) {
-			currMove = otherMove.pop();
-			console.log("Popped off ["+ otherMove.length +"]")
-			interpolate = true;
-		} 
 
-		if (interpolate == true) {
-			var done = true;
-			for (i in currMove) {
-				if (i != socket.id) {
-					console.log("BEFOREEEE  LocalList = ["+localPlayerList[i].xPos+","+localPlayerList[i].yPos+"]    CurrMove = ["+currMove[i].xPos+","+currMove[i].yPos+"]");
-					localPlayerList[i].xPos = calculateXPos(localPlayerList[i].xPos, currMove[i].xPos, 8);
-					localPlayerList[i].yPos = calculateXPos(localPlayerList[i].yPos, currMove[i].yPos, 8);
-					context.drawImage(stickman, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos-stickman.height/2);
-					context.fillText(localPlayerList[i].name, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+40);
-					context.fillText("xPos: " + localPlayerList[i].xPos, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+70);
-					context.fillText("yPos: " + localPlayerList[i].yPos, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+90);
+// Update the player's location
+function updatePlayerLoc() {
 
-					if (localPlayerList[i].xPos != currMove[i].xPos || localPlayerList[i].yPos != currMove[i].yPos) {
-						done = false;
-						console.log("done set to false");
-						console.log(localPlayerList[i].xPos + " " + currMove[i].xPos + " " + localPlayerList[i].yPos + " " + currMove[i].yPos);
-					}
-					console.log("AFTER   LocalList = ["+localPlayerList[i].xPos+","+localPlayerList[i].yPos+"]    CurrMove = ["+currMove[i].xPos+","+currMove[i].yPos+"]");
+	// Moves the player from current position to destination position (client side prediction)
+	var speed = 8;
+	player.xPos = calculateXPos(player.xPos, player.xPosDes, speed, player.moveAngle);
+	player.yPos = calculateYPos(player.yPos, player.yPosDes, speed, player.moveAngle);
+
+	// Just reached the destination -> so send location...
+	if (player.moving == true && player.xPos == player.xPosDes && player.yPos == player.yPosDes) {
+		player.moving = false;
+		var coords = {
+			x: player.xPos,
+			y: player.yPos
+		};
+		//console.log(coords);
+		socket.emit('movement', coords);
+		console.log("sent my movement to server... - reached destination");
+	}
+}
+
+
+// Draw the player
+function drawPlayer() {
+
+	// Draws the current player
+	var stickman = new Image();
+	stickman.src = "static/stickman.png";
+	context.clearRect(0, 0, canvas.width, canvas.height);
+	context.drawImage(stickman, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2));
+	context.fillText(player.name, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+40));
+	context.fillText("xPos: " + Math.round(player.xPos), Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+70));
+	context.fillText("yPos: " + Math.round(player.yPos), Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+90));
+}
+
+
+
+// Update and draw other players
+function updateDrawOtherPlayers() {
+
+	var stickman = new Image();
+	stickman.src = "static/stickman.png";
+
+	// Pop the player's movement off the queue and RENDER THEM ALL!!!
+	//===================================================================
+
+	//==================================================================
+
+	// Other players have moved, interpolate their positions
+	if (interpolate == false && otherMove.length > 0) {
+		currMove = otherMove.pop();
+		console.log("Popped off ["+ otherMove.length +"]")
+		interpolate = true;
+	} 
+
+	if (interpolate == true) {
+		var done = true;
+		for (i in currMove) {
+			if (i != socket.id) {
+				console.log("BEFOREEEE  LocalList = ["+localPlayerList[i].xPos+","+localPlayerList[i].yPos+"]    CurrMove = ["+currMove[i].xPos+","+currMove[i].yPos+"]");
+				
+				otherMoveAngle = getMoveAngle(localPlayerList[i].xPos, currMove[i].xPos, localPlayerList[i].yPos, currMove[i].yPos);
+				console.log("other move angle = " + otherMoveAngle + "   cos(moveANgle) = " + Math.cos(otherMoveAngle));
+
+				localPlayerList[i].xPos = calculateXPos(localPlayerList[i].xPos, currMove[i].xPos, 8, otherMoveAngle);
+				localPlayerList[i].yPos = calculateYPos(localPlayerList[i].yPos, currMove[i].yPos, 8, otherMoveAngle);
+
+				context.drawImage(stickman, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2));
+				context.fillText(localPlayerList[i].name, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+40));
+				context.fillText("xPos: " + localPlayerList[i].xPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+70));
+				context.fillText("yPos: " + localPlayerList[i].yPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+90));
+
+				if (localPlayerList[i].xPos != currMove[i].xPos || localPlayerList[i].yPos != currMove[i].yPos) {
+					done = false;
+					console.log("done set to false");
+					console.log(localPlayerList[i].xPos + " " + currMove[i].xPos + " " + localPlayerList[i].yPos + " " + currMove[i].yPos);
 				}
-
+				console.log("AFTER   LocalList = ["+localPlayerList[i].xPos+","+localPlayerList[i].yPos+"]    CurrMove = ["+currMove[i].xPos+","+currMove[i].yPos+"]");
 			}
 
-			if (done == true) {
-				interpolate = false;
-			}
-		
+		}
+
+		if (done == true) {
+			interpolate = false;
+			console.log("interpolate FALSED");
+		}
 	
 
-		// Other players haven't moved, so just render the same location
-		} else {
-			//console.log("shud be printing local state");
-			for (i in localPlayerList) {
-				if (i != socket.id) {
-					context.drawImage(stickman, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos-stickman.height/2);
-					context.fillText(localPlayerList[i].name, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+40);
 
-					context.fillText("xPos: " + localPlayerList[i].xPos, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+70);
-					context.fillText("yPos: " + localPlayerList[i].yPos, localPlayerList[i].xPos-stickman.width/2, localPlayerList[i].yPos+stickman.height/2+90);
-				}
+	// Other players haven't moved, so just render the same location
+	} else {
+		//console.log("shud be printing local state");
+		for (i in localPlayerList) {
+			if (i != socket.id) {
+				context.drawImage(stickman, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2));
+				context.fillText(localPlayerList[i].name, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+40));
+
+				context.fillText("xPos: " + localPlayerList[i].xPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+70));
+				context.fillText("yPos: " + localPlayerList[i].yPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+90));
 			}
-		}*/
+		}
 	}
-}, 1000/32);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
@@ -279,7 +309,7 @@ setInterval(function() {
 // Moves the player x location on the x axis
 // Given the player's current x position, destination x postion & speed
 function calculateXPos(xPos, xPosDes, speed, angle) {
-	if (Math.abs(xPosDes - xPos) > speed) {
+	if (Math.abs(xPosDes - xPos) > speed*Math.cos(angle)) {
 		if (xPos < xPosDes) {
 			return (xPos + (speed*Math.cos(angle)));
 		} else if (xPos > xPosDes) {
@@ -295,7 +325,7 @@ function calculateXPos(xPos, xPosDes, speed, angle) {
 // Moves the player y location on the y axis
 // Given the player's current y position, destination y postion & speed
 function calculateYPos(yPos, yPosDes, speed, angle) {
-	if (Math.abs(yPosDes - yPos) > speed) {
+	if (Math.abs(yPosDes - yPos) > speed*Math.sin(angle)) {
 		if (yPos < yPosDes) {
 			return (yPos + (speed*Math.sin(angle)));
 		} else if (yPos > yPosDes) {
@@ -306,4 +336,9 @@ function calculateYPos(yPos, yPosDes, speed, angle) {
 	} else {
 		return yPos;
 	}
+}
+
+// Calculate the move angle given the player's current position and destination
+function getMoveAngle(xPos, xPosDes, yPos, yPosDes) {
+	return Math.abs(Math.atan((Math.abs(yPosDes-yPos)/(xPosDes-xPos))));
 }
