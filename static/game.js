@@ -1,8 +1,8 @@
 var socket = io();
 
 // Local variables
-var shutdown = false;
-var initialised = false;
+var shutdown = false;             // Indicates if server is shutting down
+var initialised = false;          // Indicates if player has initialised his name
 
 // Local player variable
 var player = {
@@ -13,20 +13,22 @@ var player = {
 	yPosDes: 100,
 	moveAngle: 0,
 	moving: false,
+	facing: "right",
 	chat: ""
 };
 
 // Local playerList array
-var localPlayerList;
-var otherMove = [];
-var currMove;
-var interpolate = false;
+var localPlayerList;               // Local array containing other player's position
+var otherMove = [];                // Array containing queue of other player's positions to be drawn
+var currMove;                      // Pop localPlayerList here to interpolate position
+var interpolate = false;           
 
-var chatLog = [];
-var displayChat = 0;
 
-var otherChat = {};
+var displayChat = 0;               // Display local player's chat?
+var otherChat = {};                // Store's other player's chats to be rendered
 
+
+// Global stick figure image
 var stickman = new Image();
 stickman.src = "static/stickman.png";
 
@@ -71,7 +73,6 @@ socket.on('nullName', function() {
     document.getElementById('userInput').focus();
 });
 
-
 // Let player know we have been initialised properly
 socket.on('initDone', function() { 
 
@@ -97,7 +98,6 @@ socket.on('playerNum', function(data) {
     document.getElementById('playerNum').innerHTML = "Players online: " + data;
     console.log("got the num packet =" + data);
 });
-
 
 // Server shutting down, prevent new actions
 socket.on('shutdown', function() {
@@ -163,11 +163,10 @@ socket.on("playerChat", function(data) {
 		};
 	}
 
+	// Make the text stop showing
 	setTimeout(function() {
 		otherChat[data.id].displayChat--;
 	}, 5000)
-
-	chatLog.push({id: data.id, msg: data.msg});
 });
 
 
@@ -185,6 +184,17 @@ document.addEventListener("click", function(event) {
 		console.log("I want to move to [" + player.xPosDes + " , " + player.yPosDes + "]   Angle = " 
 			                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
 		player.moving = true;
+
+		// Set the facing direction
+		if (player.xPosDes - player.xPos >= 0) {
+			player.facing = "right";
+			console.log("right");
+		} else {
+			console.log("left");
+			player.facing = "left";
+		}
+
+		console.log("player facing = " + player.facing);
 
 		// Focus the chat box
 		document.getElementById('chatbox').focus();
@@ -228,12 +238,14 @@ setInterval(function() {
 		if (player.xPos != player.xPosDes || player.yPos != player.yPosDes) {
 			var coords = {
 				x: player.xPos,
-				y: player.yPos
+				y: player.yPos,
+				facing: player.facing
 			};
 			//console.log(coords);
 			socket.emit('movement', coords);
 
 			console.log("sent my movement to server...");
+			console.log(coords);
 		}
 	}
 }, 1000);
@@ -288,7 +300,8 @@ function updatePlayerLoc() {
 		player.moving = false;
 		var coords = {
 			x: player.xPos,
-			y: player.yPos
+			y: player.yPos,
+			facing: player.facing
 		};
 		//console.log(coords);
 		socket.emit('movement', coords);
@@ -300,10 +313,21 @@ function updatePlayerLoc() {
 // Draw the player
 function drawPlayer() {
 	// Draws the current player
-	context.drawImage(stickman, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2));
+	if (player.facing == "right") {
+		context.drawImage(stickman, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2));	
+	} else {
+		context.translate(Math.round(player.xPos+stickman.width/2), Math.round(player.yPos-stickman.height/2))
+		context.scale(-1, 1);
+		context.drawImage(stickman, 0, 0);
+		context.setTransform(1, 0, 0, 1, 0, 0)
+	}
+
+	//console.log("pplayer facing = " + player.facing);	
+
 	context.fillText(player.name, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+40));
 	context.fillText("xPos: " + Math.round(player.xPos), Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+70));
 	context.fillText("yPos: " + Math.round(player.yPos), Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+90));
+	context.fillText("facing: " + player.facing, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos+stickman.height/2+110));
 }
 
 
@@ -321,6 +345,12 @@ function updateDrawOtherPlayers() {
 		currMove = otherMove.pop();
 		console.log("Popped off ["+ otherMove.length +"]")
 		interpolate = true;
+
+
+		// Update the other player's facing direction
+		for (key in currMove) {
+			localPlayerList[key].facing = currMove[key].facing;
+		}
 	} 
 
 	if (interpolate == true) {
@@ -335,10 +365,23 @@ function updateDrawOtherPlayers() {
 				localPlayerList[i].xPos = calculateXPos(localPlayerList[i].xPos, currMove[i].xPos, 8, otherMoveAngle);
 				localPlayerList[i].yPos = calculateYPos(localPlayerList[i].yPos, currMove[i].yPos, 8, otherMoveAngle);
 
-				context.drawImage(stickman, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2));
+				// Draw stickman facing left or right
+				if (localPlayerList[i].facing == "right") {
+					context.drawImage(stickman, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2));	
+				} else {
+					context.translate(Math.round(localPlayerList[i].xPos+stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2))
+					context.scale(-1, 1);
+					context.drawImage(stickman, 0, 0);
+					context.setTransform(1, 0, 0, 1, 0, 0)
+				}
+
+
+				// Draw helpful variables
 				context.fillText(localPlayerList[i].name, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+40));
 				context.fillText("xPos: " + localPlayerList[i].xPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+70));
 				context.fillText("yPos: " + localPlayerList[i].yPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+90));
+				context.fillText("facing: " + currMove[i].facing, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+110));
+			
 
 				if (localPlayerList[i].xPos != currMove[i].xPos || localPlayerList[i].yPos != currMove[i].yPos) {
 					done = false;
@@ -357,16 +400,30 @@ function updateDrawOtherPlayers() {
 	
 
 
+
+
+
 	// Other players haven't moved, so just render the same location
 	} else {
 		//console.log("shud be printing local state");
 		for (i in localPlayerList) {
 			if (i != socket.id) {
-				context.drawImage(stickman, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2));
-				context.fillText(localPlayerList[i].name, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+40));
 
+				// Draw stickman facing left or right
+				if (localPlayerList[i].facing == "right") {
+					context.drawImage(stickman, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2));	
+				} else {
+					context.translate(Math.round(localPlayerList[i].xPos+stickman.width/2), Math.round(localPlayerList[i].yPos-stickman.height/2))
+					context.scale(-1, 1);
+					context.drawImage(stickman, 0, 0);
+					context.setTransform(1, 0, 0, 1, 0, 0)
+				}
+			
+				// Draw helpful variables
+				context.fillText(localPlayerList[i].name, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+40));
 				context.fillText("xPos: " + localPlayerList[i].xPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+70));
 				context.fillText("yPos: " + localPlayerList[i].yPos, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+90));
+				context.fillText("facing: " + localPlayerList[i].facing, Math.round(localPlayerList[i].xPos-stickman.width/2), Math.round(localPlayerList[i].yPos+stickman.height/2+110));
 			}
 		}
 	}

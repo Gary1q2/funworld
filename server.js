@@ -50,7 +50,8 @@ io.on('connection', function(socket) {
 			var playerInfo = {
 				name: data,
 				xPos: 100,
-				yPos: 100
+				yPos: 100,
+				facing: "right"
 			};
 
 			// Add new player into the server information and give player the server state
@@ -98,6 +99,7 @@ io.on('connection', function(socket) {
 
 			playerList[socket.id].xPos = data.x;
 			playerList[socket.id].yPos = data.y;
+			playerList[socket.id].facing = data.facing;
 			console.log(playerList);
 
 			socket.broadcast.emit('updateState', playerList);
