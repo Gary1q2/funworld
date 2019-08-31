@@ -294,19 +294,6 @@ function updatePlayerLoc() {
 	var speed = 8;
 	player.xPos = calculateXPos(player.xPos, player.xPosDes, speed, player.moveAngle);
 	player.yPos = calculateYPos(player.yPos, player.yPosDes, speed, player.moveAngle);
-
-	// Just reached the destination -> so send location...
-	if (player.moving == true && player.xPos == player.xPosDes && player.yPos == player.yPosDes) {
-		player.moving = false;
-		var coords = {
-			x: player.xPos,
-			y: player.yPos,
-			facing: player.facing
-		};
-		//console.log(coords);
-		socket.emit('movement', coords);
-		console.log("sent my movement to server... - reached destination");
-	}
 }
 
 
