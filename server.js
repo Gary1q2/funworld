@@ -35,7 +35,16 @@ var playerNum = 0;
 const playerSpeed = 50; // Pixels moved per gametick
 const gameTick = 5;
 
+var debug = false;
 
+
+
+if (process.argv.length > 2) {
+	if (process.argv[2] == "debug") {
+		debug = true;
+		console.log("\nDEBUG MODE========================\n")
+	}
+}
 
 
 // Shut server down gracefully upon CTRL + C or interrupt
@@ -56,8 +65,8 @@ io.on('connection', function(socket) {
 			// Setup new player's location information
 			var playerInfo = {
 				name: data,
-				xPos: 100,
-				yPos: 100,
+				xPos: 750,
+				yPos: 350,
 				xDes: -1,
 				yDes: -1,
 				facing: "right"
@@ -68,9 +77,9 @@ io.on('connection', function(socket) {
 			pList[socket.id] = playerInfo;
 
 			// Give player the server state + specific values
-			socket.emit('initDone', {spd: playerSpeed, tick: gameTick});
+			socket.emit('initDone', {spd: playerSpeed, tick: gameTick, debug: debug});
 			socket.emit('gameState', pList);
-			console.log(data);	
+			debugMsg(data);	
 
 			// Tell other players to update their local list about new player
 			socket.broadcast.emit('otherJoin', playerInfo, socket.id);
@@ -78,7 +87,7 @@ io.on('connection', function(socket) {
 			// Update every client about the new player number
 			playerNum++;
 			io.sockets.emit('playerNum', playerNum);
-			console.log("[" + data + "] has joined with id [" + socket.id + "] ------------- total players online = " + playerNum);
+			console.log("[" + data + "] has joined ------------- total players online = " + playerNum);
 
 
 		// Error if null username submitted
@@ -102,8 +111,8 @@ io.on('connection', function(socket) {
 	// Player selected a spot to move to
 	socket.on('movement', function(data) {
 		if (pList[socket.id] != undefined) {
-			console.log(data);
-			console.log("socket id = " + socket.id);
+			debugMsg(data);
+			debugMsg("socket id = " + socket.id);
 
 			//=========================================================
 			// Check if location is valid <- do once you implement location
@@ -173,7 +182,6 @@ function updatePlayerMovement() {
 
 	for (var i in pList) {
 		if (pList[i].xDes != -1 && pList[i].yDes != -1) {
-			//console.log("xDes =" + pList[i].xDes + "    yDes = " + pList[i].yDes);
 			var moveAngle = getMoveAngle(pList[i].xPos, pList[i].xDes, pList[i].yPos, pList[i].yDes);
 			pList[i].xPos = calculateXPos(pList[i].xPos, pList[i].xDes, speed, moveAngle);
 			pList[i].yPos = calculateYPos(pList[i].yPos, pList[i].yDes, speed, moveAngle);
@@ -182,7 +190,7 @@ function updatePlayerMovement() {
 			if (pList[i].xPos == pList[i].xDes && pList[i].yPos == pList[i].yDes) {
 				pList[i].xDes = -1;
 				pList[i].yDes = -1;
-				console.log("stopped moving");
+				debugMsg("stopped moving");
 			}
 		}
 	}
@@ -234,4 +242,12 @@ function calculateYPos(yPos, yDes, speed, angle) {
 // Calculate the move angle given the player's current position and destination
 function getMoveAngle(xPos, xDes, yPos, yDes) {
 	return Math.abs(Math.atan((Math.abs(yDes-yPos)/(xDes-xPos))));
+}
+
+
+// Print debug messages only if debug mode is true
+function debugMsg(string) {
+	if (debug) {
+		console.log(string);
+	}
 }

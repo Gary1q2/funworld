@@ -5,13 +5,20 @@
     </head>
 
     <body>
+
+
         <canvas id="canvas"></canvas>
 
+
+
         <div id="hud">
-            <!-- put HUD stuff here cus HUD is a small rectangle at the very bottom -->
             <div id="playerNum"></div>
             <div id="playerName"></div>
+            <input id="chatbox" type="text"> 
         </div>
+   
+
+        
 
 
 
@@ -20,63 +27,90 @@
             <button id="loginButton" type="button" onclick="setName()">Enter</button>
         </div>
 
-        <input id="chatbox" type="text">
-
     </body>
 
     <script src="/static/game.js"></script>
 </html>
 
 <style>
-#login {
-    position: fixed;
-    padding: 5px;
-    margin: auto;
-    border: 1px solid black;
-    background-color: white;
-    left: 40%;
-    top: 40%;
-}
-#hud {
-    display: none;
-    position: fixed;
-    bottom: 20px;
-    left: 40%;
-    width: 400px;  
-    padding: 10px;
-    text-align: center;
-}
 body, html {
   padding: 0px;
   margin: 0px;
   background-color: rgba(255, 255, 255, 0.4);
   overflow: hidden;
 }
-#canvas {
+
+#userInput {
+    font-size: 40;
+}
+#loginButton {
+    font-size: 40;
+
+}
+
+#login {
+    position: fixed;
+    padding: 30px;
+    margin: auto;
+    border: 1px solid black;
+    background-color: white;
+    top: 50%;
+    left: 50%;
+    height: 100px;
+    width: 700px;
+    margin: -50 0 0 -350px;
+    font-size: 40px;
+    text-align: center;
+}
+
+
+
+
+#hud {
+    position: absolute;
     width: 1500px;
-    height: 700px;
-    margin: 0px;
-    border: 4px solid green;
+    height: 100px;  
+    left: 100px;
+    bottom: 0px;
+    font-size: 40px;
+}
+
+#canvas {
+    position: absolute;
+    width: 1500px;
+    height: 800px;
+    left: 100px;
+    top: 50px;
+    border: 1px solid black;
     /*background-color: white;
     background-image: linear-gradient(rgba(221, 221, 221, 0.4) .1em, transparent .1em), linear-gradient(90deg, rgba(221, 221, 221, 0.4) .1em, transparent .1em);
     background-size: 1em 1em;*/
-}  
+} 
+
 #playerNum {
     display: none;
-    position: fixed;
-    bottom: 30px;
-    left: 40px;
-    padding: 5px;
-    border: 1px solid black;
+    position: absolute;
+    left: 50px;
+    bottom: 50px;
+    border: 4px solid black;
     background-color: white;
 }
+
 #playerName {
     display: none;
-    position: fixed;
-    bottom: 30px;
-    right: 40px;
-    border: 1px solid black;
+    position: absolute;
+    bottom: 50px;
+    right: 50px;
+    border: 4px solid black;
     background-color: white;
-    padding: 5px;
+}
+#chatbox {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    border: 4px solid black;
+    font-size: 40px;
+    background-color: white;
 }
 </style>
