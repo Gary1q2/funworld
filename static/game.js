@@ -14,7 +14,8 @@ var player = {
 	moveAngle: 0,
 	moving: false,
 	facing: "right",
-	chat: ""
+	chat: "",
+	collision: false
 };
 
 
@@ -33,8 +34,11 @@ var debug = false;
 var stickman = new Image();
 stickman.src = "static/stickman.png";
 
+var stickColW = 40;
+var stickColH = 100;
+
 var bg = new Image();
-bg.src = "static/bg.png";
+bg.src = "static/bg_test.png";
 
 // Focus the username field
 document.getElementById('userInput').focus();
@@ -47,6 +51,19 @@ var ctx = canvas.getContext('2d');
 canvas.width = 1500;
 canvas.height = 800;
 ctx.font = "20px Arial";
+
+
+var collisions = [];
+var rect = {x: 1252, y: 231, h: 300, w: 300};
+collisions.push(rect);
+var rect = {x: 714,	y: 507,	h: 400,	w: 700};
+collisions.push(rect);
+var rect = {x: 182,	y: 689,	h: 400,	w: 800};
+collisions.push(rect);
+
+
+var mouse_x = -1;
+var mouse_y = -1;
 
 
 // Submit username via enter key
@@ -94,12 +111,6 @@ socket.on('initDone', function(data) {
 	initialised = true;
 });
 
-
-
-
-
-
-
 // Update the player number counter when player joins or leaves
 socket.on('playerNum', function(data) {
 
@@ -122,7 +133,6 @@ function disconnect() {
 	debugMsg("Requesting to disconnect...");
 	socket.disconnect();
 }
-
 
 // Receive initial gamestate from server
 socket.on('gameState', function(data) {
@@ -191,6 +201,8 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 
 		player.xDes = event.offsetX;
 		player.yDes = event.offsetY;
+		mouse_x = event.offsetX;
+		mouse_y = event.offsetY;
 		player.moveAngle = getMoveAngle(player.xPos, player.xDes, player.yPos, player.yDes);
 		debugMsg("I want to move to [" + player.xDes + " , " + player.yDes + "]   Angle = " 
 			                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
@@ -216,6 +228,24 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 	}
 }, true);
 
+/*
+
+Client side click to walk...
+	send data to server
+
+Client side render the movement using requestAnimationFrame
+Server render movement at 32 ticks...
+
+
+Why is states different...
+BECAUSE client sends to server its desired TARGET position...
+ so server renders its own copy...
+
+I should make client send out X position......
+but then client can cheat.....
+
+	to prevent hacks... make server do a check on player position? NOOOOO
+*/
 
 
 // Pressing enter to send chat message
@@ -252,6 +282,7 @@ function mainLoop() {
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
 		ctx.drawImage(bg, 0, 0);
+		player.collision = checkCollision(player.xPos, player.yPos);
 
 		// Draw player position
 		updatePlayer();
@@ -263,6 +294,11 @@ function mainLoop() {
 		drawPlayerChat();
 		drawOtherChat();
 
+
+		if (debug) { 
+			drawCollisions(); 
+			ctx.fillText("[" + mouse_x + "," + mouse_y + "]", 50, 50);
+		}
 	}
 	requestAnimationFrame(mainLoop);
 }
@@ -270,7 +306,43 @@ function mainLoop() {
 requestAnimationFrame(mainLoop);
 
 
+// Draw all the rectangles in the collisions[] + stickman collision
+function drawCollisions() {
+	// Draw boundary collisions
+	for (var i = 0; i < collisions.length; i++) {
+		ctx.beginPath();
+		ctx.lineWidth = "2";
+		ctx.rect(collisions[i].x, collisions[i].y, collisions[i].w, collisions[i].h);
+		ctx.stroke();
+	}
 
+	// Draw current player collision
+	ctx.beginPath();
+	ctx.rect(player.xPos-stickColW/2, player.yPos-stickColH/2, stickColW, stickColH);
+	ctx.stroke();
+
+	// Draw other player collisions
+	for (var i in localPList) {
+		if (i != socket.id) {
+			ctx.beginPath();
+			ctx.rect(localPList[i].xPos-stickColW/2, localPList[i].yPos-stickColH/2, stickColW, stickColH)
+			ctx.stroke();
+		}
+	}
+}
+
+// Check if passed position collides with any of the rectangles in the collisions[]
+function checkCollision(xPos, yPos) {
+	for (var i = 0; i < collisions.length; i++) {
+		if (((xPos+stickColW/2 >= collisions[i].x && xPos+stickColW/2 <= collisions[i].x + collisions[i].w) ||
+		   (xPos-stickColW/2 >= collisions[i].x && xPos-stickColW/2 <= collisions[i].x + collisions[i].w)) &&
+		   ((yPos+stickColH/2 >= collisions[i].y && yPos+stickColH/2 <= collisions[i].y + collisions[i].h) ||
+		   (yPos-stickColH/2 >= collisions[i].y && yPos-stickColH/2 <= collisions[i].y + collisions[i].h))) {
+			return true;
+		}
+	}
+	return false
+}
 
 // Update the current player's location
 function updatePlayer() {
@@ -278,15 +350,28 @@ function updatePlayer() {
 	// Moves the player from current position to destination position (client side prediction)
 	var speed = (gameTick*playerSpeed)/60;
 	if (player.xDes != -1 && player.yDes != -1) {
-		player.xPos = calculateXPos(player.xPos, player.xDes, speed, player.moveAngle);
-		player.yPos = calculateYPos(player.yPos, player.yDes, speed, player.moveAngle);
+
+		var tempX = calculateXPos(player.xPos, player.xDes, speed, player.moveAngle);
+		var tempY = calculateYPos(player.yPos, player.yDes, speed, player.moveAngle);
+
+		// Stop moving if we reached collision boundary
+		if (checkCollision(tempX, tempY)) {
+			player.xDes = player.xPos;
+			player.yDes = player.yPos;
+
+		// No collision, so keep going :D
+		} else {
+			player.xPos = tempX;
+			player.yPos = tempY;
+		}
+
+		// Player reached destination, stop moving
 		if (player.xPos == player.xDes && player.yPos == player.yDes) {
 			player.xDes = -1;
 			player.yDes = -1;
 		}
 	}
 }
-
 
 // Draw the current player
 function drawPlayer() {
@@ -307,10 +392,9 @@ function drawPlayer() {
 		drawStickVar("xPos: " + Math.round(player.xPos), player.xPos, player.yPos + 70);
 		drawStickVar("yPos: " + Math.round(player.yPos), player.xPos, player.yPos + 90);
 		drawStickVar("facing: " + player.facing, player.xPos, player.yPos + 110);
+		drawStickVar("collision: " + player.collision, player.xPos, player.yPos + 130);
 	}
 }
-
-
 
 // Update other players
 function updateOtherPlayers() {
@@ -365,17 +449,12 @@ function drawOtherPlayers() {
 	}
 }
 
-
-
-
-
 // Draw the player's chat on top of their own head
 function drawPlayerChat() {
 	if (displayChat != 0) {
 		ctx.fillText(player.chat, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2-30));
 	}
 }
-
 
 // Draw chat for other players
 function drawOtherChat() {
@@ -386,9 +465,6 @@ function drawOtherChat() {
 		}
 	}
 }
-
-
-
 
 // Moves the player x location on the x axis
 // Given the player's current x position, destination x postion & speed

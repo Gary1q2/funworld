@@ -32,10 +32,22 @@ var socketList = {};  // Stores player sockets
 var chatLog = [];     // Stores player messages
 
 var playerNum = 0; 
-const playerSpeed = 50; // Pixels moved per gametick
-const gameTick = 5;
+const playerSpeed = 5; // Pixels moved per gametick
+const gameTick = 32;
 
 var debug = false;
+
+var stickColW = 40;
+var stickColH = 100;
+
+var collisions = [];
+var rect = {x: 1252, y: 231, h: 300, w: 300};
+collisions.push(rect);
+var rect = {x: 714,	y: 507,	h: 400,	w: 700};
+collisions.push(rect);
+var rect = {x: 182,	y: 689,	h: 400,	w: 800};
+collisions.push(rect);
+
 
 
 
@@ -46,14 +58,12 @@ if (process.argv.length > 2) {
 	}
 }
 
-
 // Shut server down gracefully upon CTRL + C or interrupt
 process.on('SIGINT', function() {
 	console.log("I'm shutting down baiii");
 	io.sockets.emit('shutdown');
 	process.exit()
 });
-
 
 // Handles player connections
 io.on('connection', function(socket) {
@@ -141,10 +151,7 @@ io.on('connection', function(socket) {
 			chatLog.push({id: socket.id, msg: data});
 		}
 	});
-
 });
-
-
 
 // Server game loop @ 32 ticks
 setInterval(function() {
@@ -183,8 +190,19 @@ function updatePlayerMovement() {
 	for (var i in pList) {
 		if (pList[i].xDes != -1 && pList[i].yDes != -1) {
 			var moveAngle = getMoveAngle(pList[i].xPos, pList[i].xDes, pList[i].yPos, pList[i].yDes);
-			pList[i].xPos = calculateXPos(pList[i].xPos, pList[i].xDes, speed, moveAngle);
-			pList[i].yPos = calculateYPos(pList[i].yPos, pList[i].yDes, speed, moveAngle);
+			var tempX = calculateXPos(pList[i].xPos, pList[i].xDes, speed, moveAngle);
+			var tempY = calculateYPos(pList[i].yPos, pList[i].yDes, speed, moveAngle);
+
+			// Reached boundary, stop moving
+			if (checkCollision(tempX, tempY)) {
+				pList[i].xDes = pList[i].xPos;
+				pList[i].yDes = pList[i].yPos;
+
+			// No boundary reached, keep moving!
+			} else {
+				pList[i].xPos = tempX; 
+				pList[i].yPos = tempY;
+			}	
 
 			// Player reached destination, no more moving
 			if (pList[i].xPos == pList[i].xDes && pList[i].yPos == pList[i].yDes) {
@@ -197,7 +215,18 @@ function updatePlayerMovement() {
 }
 
 
-
+// Check if passed position collides with any of the rectangles in the collisions[]
+function checkCollision(xPos, yPos) {
+	for (var i = 0; i < collisions.length; i++) {
+		if (((xPos+stickColW/2 >= collisions[i].x && xPos+stickColW/2 <= collisions[i].x + collisions[i].w) ||
+		   (xPos-stickColW/2 >= collisions[i].x && xPos-stickColW/2 <= collisions[i].x + collisions[i].w)) &&
+		   ((yPos+stickColH/2 >= collisions[i].y && yPos+stickColH/2 <= collisions[i].y + collisions[i].h) ||
+		   (yPos-stickColH/2 >= collisions[i].y && yPos-stickColH/2 <= collisions[i].y + collisions[i].h))) {
+			return true;
+		}
+	}
+	return false
+}
 
 
 
@@ -243,7 +272,6 @@ function calculateYPos(yPos, yDes, speed, angle) {
 function getMoveAngle(xPos, xDes, yPos, yDes) {
 	return Math.abs(Math.atan((Math.abs(yDes-yPos)/(xDes-xPos))));
 }
-
 
 // Print debug messages only if debug mode is true
 function debugMsg(string) {
