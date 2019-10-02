@@ -194,7 +194,6 @@ socket.on("playerChat", function(data) {
 
 // Player clicked to move somewhere
 document.getElementById('canvas').addEventListener("click", function(event) {
-	debugMsg("im sick cunt");
 	if (initialised) {
 
 		//===========================================================
@@ -221,12 +220,6 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 		debugMsg("player facing = " + player.facing);
 
 		document.getElementById('chatbox').focus();
-
-		var target = {
-			xDes: player.xDes,
-			yDes: player.yDes
-		}
-		socket.emit('movement', target);
 	}
 }, true);
 
@@ -265,6 +258,13 @@ function mainLoop() {
 		ctx.drawImage(bg, 0, 0);
 		player.collision = checkCollision(player.xPos, player.yPos);
 
+		// Send position to server
+		socket.emit('movement', {
+			x: player.xPos,
+			y: player.yPos,
+			facing: player.facing
+		});
+
 		// Draw player position
 		updatePlayer();
 		updateOtherPlayers();
@@ -275,6 +275,7 @@ function mainLoop() {
 		drawPlayerChat();
 		drawOtherChat();
 
+		// Some debugging stuff
 		if (debug) { 
 			drawCollisions(); 
 			ctx.fillText("[" + mouse_x + "," + mouse_y + "]", 50, 50);
@@ -317,7 +318,7 @@ function checkCollision(xPos, yPos) {
 			return true;
 		}
 	}
-	return false
+	return false;
 }
 
 // Update the current player's location

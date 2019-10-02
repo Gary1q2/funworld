@@ -121,20 +121,15 @@ io.on('connection', function(socket) {
 	// Player selected a spot to move to
 	socket.on('movement', function(data) {
 		if (pList[socket.id] != undefined) {
-			debugMsg(data);
-			debugMsg("socket id = " + socket.id);
 
 			//=========================================================
 			// Check if location is valid <- do once you implement location
 			// CHANGE ..... its sending its current position
-			pList[socket.id].xDes = data.xDes;
-			pList[socket.id].yDes = data.yDes;
-
-			if (pList[socket.id].xDes - pList[socket.id].xPos >= 0) {
-				pList[socket.id].facing = "right";
-			} else {
-				pList[socket.id].facing = "left";
-			}
+			
+			// Update location of player
+			pList[socket.id].xPos = data.x;
+			pList[socket.id].yPos = data.y;
+			pList[socket.id].facing = data.facing;
 		}
 	});
 
@@ -155,7 +150,7 @@ io.on('connection', function(socket) {
 
 // Server game loop @ 32 ticks
 setInterval(function() {
-	updatePlayerMovement();
+	//updatePlayerMovement();
 	sendPlayerMovement();
 
 }, 1000/gameTick);
