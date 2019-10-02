@@ -108,7 +108,9 @@ socket.on('initDone', function(data) {
 	document.getElementById('playerName').style.display = "block";
 	document.getElementById('chatbox').style.display = "block";
 	
+	// Start the main loop
 	initialised = true;
+	setInterval(mainLoop, 1000/gameTick);
 });
 
 // Update the player number counter when player joins or leaves
@@ -228,26 +230,6 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 	}
 }, true);
 
-/*
-
-Client side click to walk...
-	send data to server
-
-Client side render the movement using requestAnimationFrame
-Server render movement at 32 ticks...
-
-
-Why is states different...
-BECAUSE client sends to server its desired TARGET position...
- so server renders its own copy...
-
-I should make client send out X position......
-but then client can cheat.....
-
-	to prevent hacks... make server do a check on player position? NOOOOO
-*/
-
-
 // Pressing enter to send chat message
 document.onkeypress = function(event) {
     switch (event.keyCode) {
@@ -280,7 +262,6 @@ document.onkeypress = function(event) {
 function mainLoop() {
 	if (initialised) {
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-
 		ctx.drawImage(bg, 0, 0);
 		player.collision = checkCollision(player.xPos, player.yPos);
 
@@ -294,17 +275,12 @@ function mainLoop() {
 		drawPlayerChat();
 		drawOtherChat();
 
-
 		if (debug) { 
 			drawCollisions(); 
 			ctx.fillText("[" + mouse_x + "," + mouse_y + "]", 50, 50);
 		}
 	}
-	requestAnimationFrame(mainLoop);
 }
-
-requestAnimationFrame(mainLoop);
-
 
 // Draw all the rectangles in the collisions[] + stickman collision
 function drawCollisions() {
@@ -348,7 +324,8 @@ function checkCollision(xPos, yPos) {
 function updatePlayer() {
 
 	// Moves the player from current position to destination position (client side prediction)
-	var speed = (gameTick*playerSpeed)/60;
+	var speed = playerSpeed;
+
 	if (player.xDes != -1 && player.yDes != -1) {
 
 		var tempX = calculateXPos(player.xPos, player.xDes, speed, player.moveAngle);
@@ -399,7 +376,7 @@ function drawPlayer() {
 // Update other players
 function updateOtherPlayers() {
 
-	var speed = (gameTick*playerSpeed)/60;
+	var speed = playerSpeed;
 
 	// Update the positions of other players (if they requiring moving that is)
 	for (i in localPList) {
