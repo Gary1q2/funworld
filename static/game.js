@@ -1,3 +1,37 @@
+// Importing item images
+var lollypop = new Image();
+lollypop.src = "static/lollypop.png";
+var helmet = new Image();
+helmet.src = "static/helmet.png";
+var armour = new Image();
+armour.src = "static/armour.png";
+
+// Importing equipment HUD images
+var head = new Image();
+head.src = "static/head.png";
+var body = new Image();
+body.src = "static/body.png";
+var hand = new Image();
+hand.src = "static/hand.png";
+
+// Setting values for item array
+var items = {};
+items[0] = {
+	name: lollypop,
+	equip: "hand"
+}
+items[1] = {
+	name: helmet,
+	equip: "head"
+}
+items[2] = {
+	name: armour,
+	equip: "body"
+}
+
+
+
+
 var socket = io();
 
 // Local variables
@@ -15,7 +49,11 @@ var player = {
 	moving: false,
 	facing: "right",
 	chat: "",
-	collision: false
+	collision: false,
+	head: -1,
+	body: -1,
+	hand: -1,
+	invent: [0, 1, 2]
 };
 
 
@@ -29,6 +67,8 @@ var playerSpeed;
 var gameTick;
 
 var debug = false;
+
+var inventOpen = false;   // if inventory is opened or not
 
 // Global stick figure image
 var stickman = new Image();
@@ -192,62 +232,107 @@ socket.on("playerChat", function(data) {
 });
 
 
-// Player clicked to move somewhere
+// Player clicked on the screen
 document.getElementById('canvas').addEventListener("click", function(event) {
 	if (initialised) {
 
-		//===========================================================
-		// Should client side check here - once you implement locations
-		//===========================================================
+		// Clicked the inventory
+		if (inventOpen) {
+			var itemClicked = inventItemClicked(event.offsetX, event.offsetY);
+			debugMsg("CLICKED ON ITEM = " + itemClicked);
 
-		player.xDes = event.offsetX;
-		player.yDes = event.offsetY;
-		mouse_x = event.offsetX;
-		mouse_y = event.offsetY;
-		player.moveAngle = getMoveAngle(player.xPos, player.xDes, player.yPos, player.yDes);
-		debugMsg("I want to move to [" + player.xDes + " , " + player.yDes + "]   Angle = " 
-			                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
-		player.moving = true;
+			var equipClicked = equipItemClicked(event.offsetX, event.offsetY);
+			debugMsg("CLICKED on EQUIPMENT = " + equipClicked);
 
-		// Set the facing direction
-		if (player.xDes - player.xPos >= 0) {
-			player.facing = "right";
-			debugMsg("right");
+			// Assign the item clicked to player's equipped item
+			if (itemClicked != -1) {
+				if (items[itemClicked].equip == "head") {
+					player.head = itemClicked;
+				} else if (items[itemClicked].equip == "body") {
+					player.body = itemClicked;
+				} else if (items[itemClicked].equip == "hand") {
+					player.hand = itemClicked;
+				}
+			} else if (equipClicked != -1) {
+				if (equipClicked == "head") {
+					player.head = -1;
+				} else if (equipClicked == "body") {
+					player.body = -1;
+				} else if (equipClicked == "hand") {
+					player.hand = -1;
+				}
+			}
+			// ===============================================
+			// CAN ONLY CLICK ON EITHER INVENTORY OR EQUIPMENT ONLY RIGHT NOW
+			// OVERRIDESSSS
+
+			// ================================================
+
+
+		// Move the player
 		} else {
-			debugMsg("left");
-			player.facing = "left";
-		}
-		debugMsg("player facing = " + player.facing);
 
-		document.getElementById('chatbox').focus();
+			//===========================================================
+			// Should client side check here - once you implement locations
+			//===========================================================
+
+			player.xDes = event.offsetX;
+			player.yDes = event.offsetY;
+			mouse_x = event.offsetX;
+			mouse_y = event.offsetY;
+			player.moveAngle = getMoveAngle(player.xPos, player.xDes, player.yPos, player.yDes);
+			debugMsg("I want to move to [" + player.xDes + " , " + player.yDes + "]   Angle = " 
+				                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
+			player.moving = true;
+
+			// Set the facing direction
+			if (player.xDes - player.xPos >= 0) {
+				player.facing = "right";
+				debugMsg("right");
+			} else {
+				debugMsg("left");
+				player.facing = "left";
+			}
+			debugMsg("player facing = " + player.facing);
+
+			document.getElementById('chatbox').focus();
+		}
 	}
 }, true);
 
-// Pressing enter to send chat message
+// Handling key presses
 document.onkeypress = function(event) {
+	//debugMsg("pressed key code " + event.keyCode);
     switch (event.keyCode) {
+
+    	// Press enter to send chat
     	case 13:
-		debugMsg("Press enter for chat message");
+			debugMsg("Press enter for chat message");
 
-    	// Send chat message to server if not empty
-		var text = document.getElementById("chatbox").value;
-		if (text != "") {
-			debugMsg("Sent msg to server");
-	    	socket.emit('chat', text);
-	    	document.getElementById("chatbox").value = "";
-		}
+	    	// Send chat message to server if not empty
+			var text = document.getElementById("chatbox").value;
+			if (text != "") {
+				debugMsg("Sent msg to server");
+		    	socket.emit('chat', text);
+		    	document.getElementById("chatbox").value = "";
+			}
 
-		// Prepare chat to be rendered
-		player.chat = text;
-		displayChat++;
-		setTimeout(function() {
-			displayChat--;
-		}, 5000);
+			// Prepare chat to be rendered
+			player.chat = text;
+			displayChat++;
+			setTimeout(function() {
+				displayChat--;
+			}, 5000);
+		    break;
 
-	    break;
+		// Press I for inventory    
+	    case 73:
+	    case 105:
+	    	inventOpen = !inventOpen;
+	    	debugMsg("inventory opened = " + inventOpen);
+	    	break;
     }
 };
-
 
 
 
@@ -275,12 +360,131 @@ function mainLoop() {
 		drawPlayerChat();
 		drawOtherChat();
 
+		// Draw player's equipped items
+		drawEquipped();
+
+		// Draw inventory (if opened)
+		if (inventOpen) {
+			drawInventory();
+		}
+
 		// Some debugging stuff
 		if (debug) { 
 			drawCollisions(); 
 			ctx.fillText("[" + mouse_x + "," + mouse_y + "]", 50, 50);
 		}
 	}
+}
+
+// Returns the equipment (head, body or hand) that was clicked
+// -1 if nothing
+function equipItemClicked(mouseX, mouseY) {
+	var equipX = 1000;
+	var equipY = 100;
+	var len = 60;
+	if (mouseX >= equipX-len/2 && mouseX <= equipX+len/2 && mouseY >= equipY-len/2 && mouseY <= equipY+len/2) {
+		return "head";
+	} else if (mouseX >= equipX-len/2 && mouseX <= equipX+len/2 && mouseY >= equipY+len-len/2 && mouseY <= equipY+len+len/2) {
+		return "body";
+	} else if (mouseX >= equipX-len-len/2 && mouseX <= equipX-len+len/2 && mouseY >= equipY+len-len/2 && mouseY <= equipY+len+len/2) {
+		return "hand";
+	}
+	return -1;
+}
+
+// Returns the item id clicked in the inventory
+function inventItemClicked(mouseX, mouseY) {
+
+	var xLoc = 700;
+	var yLoc = 100;
+	var itemW = 60;
+	var itemH = 60;
+	var border = 20;
+
+	// Check if clicked on an item
+	for (var i = 0; i < player.invent.length; i++) {
+		if (mouseX >= xLoc && mouseX <= xLoc + itemW && mouseY >= yLoc + (i * itemH) && mouseY <= yLoc + (i * itemH) + itemH) {
+			return player.invent[i];
+		}
+	}
+
+	// If nothing returns -1
+	return -1;
+}
+
+// Draw the player's equipped items
+function drawEquipped() {
+	if (player.head != -1) {
+		ctx.drawImage(items[player.head].name, player.xPos-stickColW/2, player.yPos-stickColH/2 - 10);
+	}
+	if (player.body != -1) {
+		ctx.drawImage(items[player.body].name, player.xPos-stickColW/2, player.yPos-stickColH/2+20);
+	}
+	if (player.hand != -1) {
+		ctx.drawImage(items[player.hand].name, player.xPos-stickColW/2+20, player.yPos-stickColH/2);
+	}	
+}
+
+// Draw the player's inventory
+function drawInventory() {
+
+	var xLoc = 700;
+	var yLoc = 100;
+	var itemW = 60;
+	var itemH = 60;
+	var border = 20;
+
+	// Draw the inventory
+	for (var i = 0; i < player.invent.length; i++) {
+
+		// Draw rectangles
+		ctx.beginPath();
+		ctx.lineWidth = "2";
+		ctx.rect(xLoc, yLoc + (i * itemH), itemW, itemH);
+		ctx.stroke();
+
+		// Draw items
+		ctx.drawImage(items[player.invent[i]].name, xLoc, yLoc + (i * itemH));
+	}
+
+	var equipX = 1000;
+	var equipY = 100;
+	var len = 60;
+
+	// Draw the equipment screen background
+	ctx.drawImage(head, equipX-len/2, equipY-len/2, len, len);
+	ctx.drawImage(body, equipX-len/2, equipY+len-len/2, len, len);
+	ctx.drawImage(hand, equipX-len-len/2, equipY+len-len/2, len, len);
+
+	// Draw the rectangles for clicking
+	ctx.beginPath();
+	ctx.lineWidth = "2";
+	ctx.rect(equipX-len/2, equipY-len/2, len, len);
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.lineWidth = "2";
+	ctx.rect(equipX-len/2, equipY+len-len/2, len, len);
+	ctx.stroke();
+
+	ctx.beginPath();
+	ctx.lineWidth = "2";
+	ctx.rect(equipX-len-len/2, equipY+len-len/2, len, len);
+	ctx.stroke();
+
+	// Draw equipment on equipment screen
+	if (player.head != -1) {
+		ctx.drawImage(items[player.head].name, equipX-len/2, equipY-len/2);
+	}
+	if (player.body != -1) {
+		ctx.drawImage(items[player.body].name, equipX-len/2, equipY+len-len/2);
+	} 
+	if (player.hand != -1) {
+		ctx.drawImage(items[player.hand].name, equipX-len-len/2, equipY+len-len/2);
+	}
+	
+	
+
 }
 
 // Draw all the rectangles in the collisions[] + stickman collision

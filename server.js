@@ -11,7 +11,8 @@ var app = express();
 var server = http.Server(app);
 var io = socketIO(server);
 
-
+// Console input on server
+var stdin = process.openStdin();
 
 app.set('port', (process.env.PORT || port));
 app.use('/static', express.static(__dirname + '/static'));
@@ -35,11 +36,16 @@ var playerNum = 0;
 const playerSpeed = 5; // Pixels moved per gametick
 const gameTick = 32;
 
+
+
+
 var debug = false;
 
+// Height and width of a stickman image
 var stickColW = 40;
 var stickColH = 100;
 
+// Adding collision squares to the collision array
 var collisions = [];
 var rect = {x: 1252, y: 231, h: 300, w: 300};
 collisions.push(rect);
@@ -50,7 +56,7 @@ collisions.push(rect);
 
 
 
-
+// Taking in arguments when executed
 if (process.argv.length > 2) {
 	if (process.argv[2] == "debug") {
 		debug = true;
@@ -79,7 +85,11 @@ io.on('connection', function(socket) {
 				yPos: 350,
 				xDes: -1,
 				yDes: -1,
-				facing: "right"
+				facing: "right",
+				head: -1,
+				body: -1,
+				hand: -1,
+				invent: []
 			};
 
 			// Add new player into the server information + save socket
