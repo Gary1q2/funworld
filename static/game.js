@@ -1,35 +1,22 @@
-// Importing item images
-var lollypop = new Image();
-lollypop.src = "static/lollypop.png";
-var helmet = new Image();
-helmet.src = "static/helmet.png";
-var armour = new Image();
-armour.src = "static/armour.png";
-
-// Importing equipment HUD images
-var head = new Image();
-head.src = "static/head.png";
-var body = new Image();
-body.src = "static/body.png";
-var hand = new Image();
-hand.src = "static/hand.png";
 
 // Setting values for item array
 var items = {};
-items[0] = {
-	name: lollypop,
-	equip: "hand"
-}
-items[1] = {
-	name: helmet,
-	equip: "head"
-}
-items[2] = {
-	name: armour,
-	equip: "body"
-}
+setItem(0, "lollypop", "hand", "static/lollypop.png");
+setItem(1, "helmet", "head", "static/helmet.png");
+setItem(2, "armour", "body", "static/armour.png");
 
-
+// Loading images for other stuff
+var images = {};
+images.head = new Image();
+images.head.src = "static/head.png";
+images.body = new Image();
+images.body.src = "static/body.png";
+images.hand = new Image();
+images.hand.src = "static/hand.png";
+images.stickman = new Image();
+images.stickman.src = "static/stickman.png";
+images.bg = new Image();
+images.bg.src = "static/bg_test.png";
 
 
 var socket = io();
@@ -40,22 +27,38 @@ var initialised = false;          // Indicates if player has initialised his nam
 
 // Local player variable
 var player = {
-	name: "",
-	xPos: 750,
-	yPos: 350,
-	xDes: -1,
-	yDes: -1,
-	moveAngle: 0,
-	moving: false,
-	facing: "right",
-	chat: "",
-	collision: false,
+	name: "",            // set by client from setName
+	xPos: 750,           // client side prediction pos
+	yPos: 350,           // ...
+	xDes: -1,            // client side prediction des
+	yDes: -1,            // ...
+	facing: "right",     // client side prediction facing
 	head: -1,
 	body: -1,
 	hand: -1,
-	invent: [0, 1, 2]
+	invent: []
 };
 
+/* player in localPList is not used at ALLL
+
+var player = {
+	name: "",           n/a  
+	xPos: 750,          client side -> server       
+	yPos: 350,          client side -> server
+	xDes: -1,           n/a
+	yDes: -1,           n/a    
+	facing: "right",    client side -> server    
+	head: -1,           client side <-> server
+	body: -1,           client side <-> server
+	hand: -1,           client side <-> server
+	invent: []          client side <-> server
+};
+
+*/
+
+var chatMessage = "";
+var playerCollision = false;
+var playerMoveAngle = 0;
 
 var localPList;               // Local array containing other player's position
 
@@ -70,15 +73,10 @@ var debug = false;
 
 var inventOpen = false;   // if inventory is opened or not
 
-// Global stick figure image
-var stickman = new Image();
-stickman.src = "static/stickman.png";
-
 var stickColW = 40;
 var stickColH = 100;
 
-var bg = new Image();
-bg.src = "static/bg_test.png";
+
 
 // Focus the username field
 document.getElementById('userInput').focus();
@@ -176,12 +174,6 @@ function disconnect() {
 	socket.disconnect();
 }
 
-// Receive initial gamestate from server
-socket.on('gameState', function(data) {
-	localPList = data;
-});
-
-
 // Another player joined, so update your array
 socket.on('otherJoin', function(data, id) {
 	if (initialised) {
@@ -197,14 +189,16 @@ socket.on('otherLeave', function(id) {
 });
 
 
-// Receive update on player's locations
+// Receive update on pList
 socket.on('updateState', function(data) {
+	localPList = data;
 
-	for (i in data) {
-		localPList[i].xDes = data[i].xPos;
-		localPList[i].yDes = data[i].yPos;
-		localPList[i].facing = data[i].facing;
-	}
+	// Update client's own player
+	player.head = data[socket.id].head;
+	player.body = data[socket.id].body;
+	player.hand = data[socket.id].hand;
+	player.invent = data[socket.id].invent;
+
 });
 
 // Receive chat from other player
@@ -253,6 +247,10 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 				} else if (items[itemClicked].equip == "hand") {
 					player.hand = itemClicked;
 				}
+
+				// Tell server equipped an item
+				socket.emit('equipItem', itemClicked);
+
 			} else if (equipClicked != -1) {
 				if (equipClicked == "head") {
 					player.head = -1;
@@ -261,6 +259,9 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 				} else if (equipClicked == "hand") {
 					player.hand = -1;
 				}
+
+				// Tell server unequipped an item
+				socket.emit('unequipItem', equipClicked);
 			}
 			// ===============================================
 			// CAN ONLY CLICK ON EITHER INVENTORY OR EQUIPMENT ONLY RIGHT NOW
@@ -280,10 +281,9 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 			player.yDes = event.offsetY;
 			mouse_x = event.offsetX;
 			mouse_y = event.offsetY;
-			player.moveAngle = getMoveAngle(player.xPos, player.xDes, player.yPos, player.yDes);
+			playerMoveAngle = getMoveAngle(player.xPos, player.xDes, player.yPos, player.yDes);
 			debugMsg("I want to move to [" + player.xDes + " , " + player.yDes + "]   Angle = " 
-				                                    + Math.round(player.moveAngle*180/Math.PI) + " degs");
-			player.moving = true;
+				                                    + Math.round(playerMoveAngle*180/Math.PI) + " degs");
 
 			// Set the facing direction
 			if (player.xDes - player.xPos >= 0) {
@@ -318,7 +318,7 @@ document.onkeypress = function(event) {
 			}
 
 			// Prepare chat to be rendered
-			player.chat = text;
+			chatMessage = text;
 			displayChat++;
 			setTimeout(function() {
 				displayChat--;
@@ -340,8 +340,8 @@ document.onkeypress = function(event) {
 function mainLoop() {
 	if (initialised) {
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
-		ctx.drawImage(bg, 0, 0);
-		player.collision = checkCollision(player.xPos, player.yPos);
+		ctx.drawImage(images["bg"], 0, 0);
+		playerCollision = checkCollision(player.xPos, player.yPos);
 
 		// Send position to server
 		socket.emit('movement', {
@@ -360,8 +360,9 @@ function mainLoop() {
 		drawPlayerChat();
 		drawOtherChat();
 
-		// Draw player's equipped items
+		// Draw equipped items for ALL players
 		drawEquipped();
+		drawOtherEquipped();
 
 		// Draw inventory (if opened)
 		if (inventOpen) {
@@ -375,6 +376,19 @@ function mainLoop() {
 		}
 	}
 }
+
+
+// Initialise item property inside items{}
+function setItem(itemID, name, bodyPart, fileLoc) {
+	var object = {
+		name: name,
+		equip: bodyPart,
+		img: new Image()
+	}
+	object.img.src = fileLoc;
+	items[itemID] = object;
+}
+
 
 // Returns the equipment (head, body or hand) that was clicked
 // -1 if nothing
@@ -415,14 +429,32 @@ function inventItemClicked(mouseX, mouseY) {
 // Draw the player's equipped items
 function drawEquipped() {
 	if (player.head != -1) {
-		ctx.drawImage(items[player.head].name, player.xPos-stickColW/2, player.yPos-stickColH/2 - 10);
+		ctx.drawImage(items[player.head].img, player.xPos-stickColW/2, player.yPos-stickColH/2 - 10);
 	}
 	if (player.body != -1) {
-		ctx.drawImage(items[player.body].name, player.xPos-stickColW/2, player.yPos-stickColH/2+20);
+		ctx.drawImage(items[player.body].img, player.xPos-stickColW/2, player.yPos-stickColH/2+20);
 	}
 	if (player.hand != -1) {
-		ctx.drawImage(items[player.hand].name, player.xPos-stickColW/2+20, player.yPos-stickColH/2);
+		ctx.drawImage(items[player.hand].img, player.xPos-stickColW/2+20, player.yPos-stickColH/2);
 	}	
+}
+
+// Draw other player's equipped items
+function drawOtherEquipped() {
+	for (i in localPList) {
+		if (i != socket.id) {
+			var obj = localPList[i];
+			if (obj.head != -1) {
+				ctx.drawImage(items[obj.head].img, obj.xPos-stickColW/2, obj.yPos-stickColH/2 - 10);
+			}
+			if (obj.body != -1) {
+				ctx.drawImage(items[obj.body].img, obj.xPos-stickColW/2, obj.yPos-stickColH/2+20);
+			}
+			if (obj.hand != -1) {
+				ctx.drawImage(items[obj.hand].img, obj.xPos-stickColW/2+20, obj.yPos-stickColH/2);
+			}
+		}	
+	}
 }
 
 // Draw the player's inventory
@@ -444,7 +476,7 @@ function drawInventory() {
 		ctx.stroke();
 
 		// Draw items
-		ctx.drawImage(items[player.invent[i]].name, xLoc, yLoc + (i * itemH));
+		ctx.drawImage(items[player.invent[i]].img, xLoc, yLoc + (i * itemH));
 	}
 
 	var equipX = 1000;
@@ -452,9 +484,9 @@ function drawInventory() {
 	var len = 60;
 
 	// Draw the equipment screen background
-	ctx.drawImage(head, equipX-len/2, equipY-len/2, len, len);
-	ctx.drawImage(body, equipX-len/2, equipY+len-len/2, len, len);
-	ctx.drawImage(hand, equipX-len-len/2, equipY+len-len/2, len, len);
+	ctx.drawImage(images["head"], equipX-len/2, equipY-len/2, len, len);
+	ctx.drawImage(images["body"], equipX-len/2, equipY+len-len/2, len, len);
+	ctx.drawImage(images["hand"], equipX-len-len/2, equipY+len-len/2, len, len);
 
 	// Draw the rectangles for clicking
 	ctx.beginPath();
@@ -474,13 +506,13 @@ function drawInventory() {
 
 	// Draw equipment on equipment screen
 	if (player.head != -1) {
-		ctx.drawImage(items[player.head].name, equipX-len/2, equipY-len/2);
+		ctx.drawImage(items[player.head].img, equipX-len/2, equipY-len/2);
 	}
 	if (player.body != -1) {
-		ctx.drawImage(items[player.body].name, equipX-len/2, equipY+len-len/2);
+		ctx.drawImage(items[player.body].img, equipX-len/2, equipY+len-len/2);
 	} 
 	if (player.hand != -1) {
-		ctx.drawImage(items[player.hand].name, equipX-len-len/2, equipY+len-len/2);
+		ctx.drawImage(items[player.hand].img, equipX-len-len/2, equipY+len-len/2);
 	}
 	
 	
@@ -533,8 +565,8 @@ function updatePlayer() {
 
 	if (player.xDes != -1 && player.yDes != -1) {
 
-		var tempX = calculateXPos(player.xPos, player.xDes, speed, player.moveAngle);
-		var tempY = calculateYPos(player.yPos, player.yDes, speed, player.moveAngle);
+		var tempX = calculateXPos(player.xPos, player.xDes, speed, playerMoveAngle);
+		var tempY = calculateYPos(player.yPos, player.yDes, speed, playerMoveAngle);
 
 		// Stop moving if we reached collision boundary
 		if (checkCollision(tempX, tempY)) {
@@ -558,11 +590,11 @@ function updatePlayer() {
 // Draw the current player
 function drawPlayer() {
 	if (player.facing == "right") {
-		ctx.drawImage(stickman, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2));	
+		ctx.drawImage(images["stickman"], Math.round(player.xPos-images["stickman"].width/2), Math.round(player.yPos-images["stickman"].height/2));	
 	} else {
-		ctx.translate(Math.round(player.xPos+stickman.width/2), Math.round(player.yPos-stickman.height/2))
+		ctx.translate(Math.round(player.xPos+images["stickman"].width/2), Math.round(player.yPos-images["stickman"].height/2))
 		ctx.scale(-1, 1);
-		ctx.drawImage(stickman, 0, 0);
+		ctx.drawImage(images["stickman"], 0, 0);
 		ctx.setTransform(1, 0, 0, 1, 0, 0)
 	}
 
@@ -574,7 +606,7 @@ function drawPlayer() {
 		drawStickVar("xPos: " + Math.round(player.xPos), player.xPos, player.yPos + 70);
 		drawStickVar("yPos: " + Math.round(player.yPos), player.xPos, player.yPos + 90);
 		drawStickVar("facing: " + player.facing, player.xPos, player.yPos + 110);
-		drawStickVar("collision: " + player.collision, player.xPos, player.yPos + 130);
+		drawStickVar("collision: " + playerCollision, player.xPos, player.yPos + 130);
 	}
 }
 
@@ -611,11 +643,11 @@ function drawOtherPlayers() {
 
 			// Draw stickman facing left or right
 			if (localPList[i].facing == "right") {
-				ctx.drawImage(stickman, Math.round(localPList[i].xPos-stickman.width/2), Math.round(localPList[i].yPos-stickman.height/2));	
+				ctx.drawImage(images["stickman"], Math.round(localPList[i].xPos-images["stickman"].width/2), Math.round(localPList[i].yPos-images["stickman"].height/2));	
 			} else {
-				ctx.translate(Math.round(localPList[i].xPos+stickman.width/2), Math.round(localPList[i].yPos-stickman.height/2));
+				ctx.translate(Math.round(localPList[i].xPos+images["stickman"].width/2), Math.round(localPList[i].yPos-images["stickman"].height/2));
 				ctx.scale(-1, 1);
-				ctx.drawImage(stickman, 0, 0);
+				ctx.drawImage(images["stickman"], 0, 0);
 				ctx.setTransform(1, 0, 0, 1, 0, 0)
 			}
 
@@ -634,7 +666,7 @@ function drawOtherPlayers() {
 // Draw the player's chat on top of their own head
 function drawPlayerChat() {
 	if (displayChat != 0) {
-		ctx.fillText(player.chat, Math.round(player.xPos-stickman.width/2), Math.round(player.yPos-stickman.height/2-30));
+		ctx.fillText(chatMessage, Math.round(player.xPos-images["stickman"].width/2), Math.round(player.yPos-images["stickman"].height/2-30));
 	}
 }
 
@@ -643,7 +675,7 @@ function drawOtherChat() {
 	for (key in otherChat) {
 		if (otherChat[key].displayChat != 0) {
 			debugMsg("key = " + key + " xPos = " + Math.round(localPList[key].xPos) + "yPos = " + Math.round(localPList[key].yPos));
-			ctx.fillText(otherChat[key].chat, Math.round(localPList[key].xPos-stickman.width/2), Math.round(localPList[key].yPos-stickman.height/2-30));
+			ctx.fillText(otherChat[key].chat, Math.round(localPList[key].xPos-images["stickman"].width/2), Math.round(localPList[key].yPos-images["stickman"].height/2-30));
 		}
 	}
 }
@@ -688,7 +720,7 @@ function getMoveAngle(xPos, xDes, yPos, yDes) {
 
 // Draws text starting from the origin of the given stickman position
 function drawStickVar(string, xPos, yPos) {
-	ctx.fillText(string, Math.round(xPos-stickman.width/2), Math.round(yPos+stickman.height/2));
+	ctx.fillText(string, Math.round(xPos-images["stickman"].width/2), Math.round(yPos+images["stickman"].height/2));
 }
 
 

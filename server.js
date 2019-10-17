@@ -1,6 +1,14 @@
 const port = 6969;
 const ip = "0.0.0.0";
 
+// Setting items WARNING could be different to client
+var items = {};
+setItem(0, "lollypop", "hand", "static/lollypop.png");
+setItem(1, "helmet", "head", "static/helmet.png");
+setItem(2, "armour", "body", "static/armour.png");
+
+
+
 // Dependencies
 var express = require('express');
 var http = require('http');
@@ -89,7 +97,7 @@ io.on('connection', function(socket) {
 				head: -1,
 				body: -1,
 				hand: -1,
-				invent: []
+				invent: [0, 1, 2]
 			};
 
 			// Add new player into the server information + save socket
@@ -98,7 +106,7 @@ io.on('connection', function(socket) {
 
 			// Give player the server state + specific values
 			socket.emit('initDone', {spd: playerSpeed, tick: gameTick, debug: debug});
-			socket.emit('gameState', pList);
+			socket.emit('updateState', pList);
 			debugMsg(data);	
 
 			// Tell other players to update their local list about new player
@@ -156,34 +164,113 @@ io.on('connection', function(socket) {
 			chatLog.push({id: socket.id, msg: data});
 		}
 	});
+
+	// Player equip an item
+	socket.on('equipItem', function(itemID) {
+		if (pList[socket.id].invent.includes(itemID)) {
+			debugMsg("Player " + pList[socket.id].name + " equiped item " + itemID);
+			var slot = items[itemID].equip;
+			if (slot == "head") {
+				pList[socket.id].head = itemID;
+			} else if (slot == "body") {
+				pList[socket.id].body = itemID;
+			} else if (slot == "hand") {
+				pList[socket.id].hand = itemID;
+			}
+		}
+	});
+
+	// Player unequip an item
+	socket.on('unequipItem', function(body) {
+		debugMsg("Player " + pList[socket.id].name + " unequiped item from " + body);
+		if (body == "head") {
+			pList[socket.id].head = -1;
+		} else if (body == "body") {
+			pList[socket.id].body = -1;
+		} else if (body == "hand") {
+			pList[socket.id].hand = -1;
+		}
+	});
+
 });
 
 // Server game loop @ 32 ticks
 setInterval(function() {
-	//updatePlayerMovement();
-	sendPlayerMovement();
+
+	// Send to all clients all player states
+	sendPlayerState();
 
 }, 1000/gameTick);
 
 
+// Take in console input
+/*
+  players - lists all the players on the server
+  give [userID] [itemID] - gives a player an item
+  pList - displays the pList
 
-// Broadcast new player positions to all clients
-function sendPlayerMovement() {
+*/
+stdin.addListener("data", function(d) {
+	var string = d.toString().trim();
+	var args = string.split(" ");
+	console.log(args);
 
-	// Create array containing only player positions + info
-	var playerLoc = {};
-	for (var player in pList) {
-		var pos = {
-			xPos: pList[player].xPos,
-			yPos: pList[player].yPos,
-			facing: pList[player].facing
+	
+	if (args.length == 1) {
+
+		// players command
+		if (args[0] == "players") {
+			console.log("Name ID")
+			for (var player in pList) {
+				console.log(pList[player].name+" "+player);
+			}
+
+		// pList command
+		} else if (args[0] == "pList") {
+			console.log(pList);
+		} else {
+			console.log("Unknown command");
 		}
-		playerLoc[player] = pos;
-	}
 
-	// Broadcast everyone's new positions
+	} else if (args.length == 3) {
+
+		// give [userID] [itemID]
+		if (args[0] == "give") {
+			if (args[1] in pList) {
+				if (args[2] >= 0 && args[2] <= 2) {
+					pList[args[1]].invent.push(args[2]);
+					console.log("Gave [" + args[1] + "] item [" + args[2] + "]");
+				} else {
+					console.log("Invalid itemID");
+				}
+			} else {
+				console.log("Invalid userID");
+			}
+		} else {
+			console.log("Unknown command");
+		}
+
+	} else {
+		console.log("Unknown command");
+	}
+});
+
+
+// Initialise item property inside items{}
+function setItem(itemID, name, bodyPart, fileLoc) {
+	items[itemID] = {
+		name: name,
+		equip: bodyPart
+	};
+}
+
+
+// Broadcast new player states to all clients
+function sendPlayerState() {
+
+	// Broadcast everyone's new states
 	for (var player in socketList) {
-		socketList[player].emit('updateState', playerLoc);
+		socketList[player].emit('updateState', pList);
 	}
 }
 
