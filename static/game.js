@@ -174,20 +174,6 @@ function disconnect() {
 	socket.disconnect();
 }
 
-// Another player joined, so update your array
-socket.on('otherJoin', function(data, id) {
-	if (initialised) {
-		localPList[id] = data;
-	}
-});
-
-// A player left, so remove them from your array
-socket.on('otherLeave', function(id) {
-	if (initialised) {
-		delete localPList[id];
-	}
-});
-
 
 // Receive update on pList
 socket.on('updateState', function(data) {

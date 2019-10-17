@@ -109,9 +109,6 @@ io.on('connection', function(socket) {
 			socket.emit('updateState', pList);
 			debugMsg(data);	
 
-			// Tell other players to update their local list about new player
-			socket.broadcast.emit('otherJoin', playerInfo, socket.id);
-
 			// Update every client about the new player number
 			playerNum++;
 			io.sockets.emit('playerNum', playerNum);
@@ -131,7 +128,6 @@ io.on('connection', function(socket) {
 			playerNum--;
 			console.log("player with id [" + socket.id + "] DISCONNECTED!!! ---------- players remaining = " + playerNum);
 			io.sockets.emit('playerNum', playerNum);
-			socket.broadcast.emit('otherLeave', socket.id);
 			delete pList[socket.id];
 		}
 	});
