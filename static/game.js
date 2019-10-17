@@ -364,7 +364,7 @@ function mainLoop() {
 		// Draw inventory (if opened)
 		if (inventOpen) {
 			drawInventory();
-			ctx.drawImage(images["inventClose"], 600-50, 500-50, 100, 100);
+			ctx.drawImage(images["inventOpen"], 600-50, 500-50, 100, 100);
 		} else {
 			ctx.drawImage(images["inventClose"], 600-50, 500-50, 100, 100);
 		}
