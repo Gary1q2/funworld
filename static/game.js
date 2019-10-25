@@ -223,6 +223,7 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 		// Clicked the inventory button on or off
 		if (event.offsetX >= 600-50 && event.offsetX <= 600+50 && event.offsetY >= 500-50 && event.offsetY <= 500+50) {
 			inventOpen = !inventOpen;	
+			debugMsg("inventory opened = " + inventOpen);
 		} else {
 			var itemClicked = inventItemClicked(event.offsetX, event.offsetY);
 			debugMsg("CLICKED ON ITEM = " + itemClicked);
@@ -321,13 +322,6 @@ document.onkeypress = function(event) {
 				displayChat--;
 			}, 5000);
 		    break;
-
-		// Press I for inventory    
-	    case 73:
-	    case 105:
-	    	inventOpen = !inventOpen;
-	    	debugMsg("inventory opened = " + inventOpen);
-	    	break;
     }
 };
 
