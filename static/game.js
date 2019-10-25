@@ -23,8 +23,8 @@ images.inventOpen = new Image();
 images.inventOpen.src = "static/inventOpen.png";
 
 
-var invent_x = 600
-var invent_y = 500
+var invent_x = 625
+var invent_y = 700
 var invent_len = 100
 
 var socket = io();
@@ -70,8 +70,10 @@ var playerMoveAngle = 0;
 
 var localPList;               // Local array containing other player's position
 
-var displayChat = 0;               // Display local player's chat?
-var otherChat = {};                // Store's other player's chats to be rendered
+var chatHistoryLen = 10;
+var displayChat = 0;                              // Display local player's chat?
+var otherChat = {};                               // Store's other player's chats to be rendered
+var chatHistory = Array(chatHistoryLen).fill(""); // Displays past chat history
 
 
 var playerSpeed;
@@ -213,6 +215,9 @@ socket.on("playerChat", function(data) {
 		};
 	}
 
+	// Add chat to history
+	addChatHistory(data.msg, data.id);
+
 	// Make the text stop showing
 	setTimeout(function() {
 		otherChat[data.id].displayChat--;
@@ -317,14 +322,17 @@ document.onkeypress = function(event) {
 				debugMsg("Sent msg to server");
 		    	socket.emit('chat', text);
 		    	document.getElementById("chatbox").value = "";
-			}
 
-			// Prepare chat to be rendered
-			chatMessage = text;
-			displayChat++;
-			setTimeout(function() {
-				displayChat--;
-			}, 5000);
+				// Prepare chat to be rendered
+				chatMessage = text;
+				displayChat++;
+				setTimeout(function() {
+					displayChat--;
+				}, 5000);
+
+				// Push player chat to chat history
+				addChatHistory(text, socket.id);
+			}
 		    break;
     }
 };
@@ -354,6 +362,7 @@ function mainLoop() {
 		// Draw chat
 		drawPlayerChat();
 		drawOtherChat();
+		drawChatHistory();
 
 		// Draw equipped items for ALL players
 		drawEquipped();
@@ -381,6 +390,32 @@ function mainLoop() {
 	}
 }
 
+// Push the word to the chat history array
+function addChatHistory(message, userID) {
+	for (var i = chatHistoryLen-1; i > 0; i--) {
+		chatHistory[i] = chatHistory[i-1];
+	}
+	chatHistory[0] = localPList[userID].name + ": " + message;
+}
+
+// Draw the chat history
+function drawChatHistory() {
+
+	var chatHistory_x = 1000;
+	var chatHistory_y = 700;
+	var gap = 30;
+	var padding = 10;
+
+	// Draw the chat history background
+	ctx.fillStyle = "#cc8540";
+	ctx.fillRect(chatHistory_x-padding, chatHistory_y - (chatHistoryLen * gap) - padding, 400+(2*padding), (chatHistoryLen*gap) + (2*padding))
+	ctx.fillStyle = "#000000";
+
+	// Draw the text
+	for (var i = 0; i < chatHistoryLen; i++) {
+		ctx.fillText(chatHistory[i], chatHistory_x, chatHistory_y - padding - (i * gap));
+	}
+}
 
 // Initialise item property inside items{}
 function setItem(itemID, name, bodyPart, fileLoc) {
@@ -678,7 +713,7 @@ function drawPlayerChat() {
 function drawOtherChat() {
 	for (key in otherChat) {
 		if (otherChat[key].displayChat != 0) {
-			debugMsg("key = " + key + " xPos = " + Math.round(localPList[key].xPos) + "yPos = " + Math.round(localPList[key].yPos));
+			//debugMsg("key = " + key + " xPos = " + Math.round(localPList[key].xPos) + "yPos = " + Math.round(localPList[key].yPos));
 			ctx.fillText(otherChat[key].chat, Math.round(localPList[key].xPos-images["stickman"].width/2), Math.round(localPList[key].yPos-images["stickman"].height/2-30));
 		}
 	}
