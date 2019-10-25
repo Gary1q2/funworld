@@ -23,6 +23,10 @@ images.inventOpen = new Image();
 images.inventOpen.src = "static/inventOpen.png";
 
 
+var invent_x = 600
+var invent_y = 500
+var invent_len = 100
+
 var socket = io();
 
 // Local variables
@@ -221,7 +225,7 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 	if (initialised) {
 
 		// Clicked the inventory button on or off
-		if (event.offsetX >= 600-50 && event.offsetX <= 600+50 && event.offsetY >= 500-50 && event.offsetY <= 500+50) {
+		if (event.offsetX >= invent_x-invent_len/2 && event.offsetX <= invent_x+invent_len/2 && event.offsetY >= invent_y-invent_len/2 && event.offsetY <= invent_y+invent_len/2) {
 			inventOpen = !inventOpen;	
 			debugMsg("inventory opened = " + inventOpen);
 		} else {
@@ -358,15 +362,15 @@ function mainLoop() {
 		// Draw inventory (if opened)
 		if (inventOpen) {
 			drawInventory();
-			ctx.drawImage(images["inventOpen"], 600-50, 500-50, 100, 100);
+			ctx.drawImage(images["inventOpen"], invent_x-invent_len/2, invent_y-invent_len/2, invent_len, invent_len);
 		} else {
-			ctx.drawImage(images["inventClose"], 600-50, 500-50, 100, 100);
+			ctx.drawImage(images["inventClose"], invent_x-invent_len/2, invent_y-invent_len/2, invent_len, invent_len);
 		}
 
 		// Draw inventory on/off button rectangle
 		ctx.beginPath();
 		ctx.lineWidth = "2";
-		ctx.rect(600-50, 500-50, 100, 100);
+		ctx.rect(invent_x-invent_len/2, invent_y-invent_len/2, invent_len, invent_len);
 		ctx.stroke();
 
 		// Some debugging stuff
