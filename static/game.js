@@ -21,6 +21,12 @@ images.inventClose = new Image();
 images.inventClose.src = "static/inventClose.png";
 images.inventOpen = new Image();
 images.inventOpen.src = "static/inventOpen.png";
+images.fishArea = new Image();
+images.fishArea.src = "static/fishArea.png";
+images.fishingIcon = new Image();
+images.fishingIcon.src = "static/fishingIcon.png";
+images.fishingRod = new Image();
+images.fishingRod.src = "static/fishingRod.png";
 
 
 var invent_x = 625
@@ -44,7 +50,10 @@ var player = {
 	head: -1,
 	body: -1,
 	hand: -1,
-	invent: []
+	invent: [],
+	intent: -1,
+	state: -1,
+	money: 0
 };
 
 /* player in localPList is not used at ALLL
@@ -86,7 +95,12 @@ var inventOpen = false;   // if inventory is opened or not
 var stickColW = 40;
 var stickColH = 100;
 
+var fishArea_x = 890;
+var fishArea_y = 550;
 
+var canFishTick = true;
+
+var mouseIcon = "none"   // Stores what the mouse icon should display
 
 // Focus the username field
 document.getElementById('userInput').focus();
@@ -224,6 +238,26 @@ socket.on("playerChat", function(data) {
 	}, 5000)
 });
 
+// Mouse over different objects
+document.getElementById('canvas').addEventListener("mousemove", function(event) {
+	if (initialised) {
+
+		// Update the mouse coordinates
+		var rect = canvas.getBoundingClientRect();
+		mouse_x = event.clientX - rect.left;
+		mouse_y = event.clientY - rect.top;
+
+		// Mouse over the fishArea -> display fishing icon
+		if (event.offsetX >= fishArea_x-images["fishArea"].width/2 && event.offsetX <= fishArea_x+images["fishArea"].width/2
+			&& event.offsetY >= fishArea_y-images["fishArea"].height/2 && event.offsetY <= fishArea_y+images["fishArea"].height/2) {
+			mouseIcon = "fishing";
+
+		// Draw nothing
+		} else {
+			mouseIcon = "none";
+		}
+	}
+})
 
 // Player clicked on the screen
 document.getElementById('canvas').addEventListener("click", function(event) {
@@ -235,10 +269,10 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 			debugMsg("inventory opened = " + inventOpen);
 		} else {
 			var itemClicked = inventItemClicked(event.offsetX, event.offsetY);
-			debugMsg("CLICKED ON ITEM = " + itemClicked);
+			//debugMsg("CLICKED ON ITEM = " + itemClicked);
 
 			var equipClicked = equipItemClicked(event.offsetX, event.offsetY);
-			debugMsg("CLICKED on EQUIPMENT = " + equipClicked);		
+			//debugMsg("CLICKED on EQUIPMENT = " + equipClicked);		
 
 			// Clicked the inventory or equipment
 			if (inventOpen && ((itemClicked != -1) || (equipClicked != -1))) {
@@ -283,23 +317,31 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 				// Should client side check here - once you implement locations
 				//===========================================================
 
+				// Clicked the fishing area
+				if (event.offsetX >= fishArea_x-images["fishArea"].width/2 && event.offsetX <= fishArea_x+images["fishArea"].width/2
+					&& event.offsetY >= fishArea_y-images["fishArea"].height/2 && event.offsetY <= fishArea_y+images["fishArea"].height/2) {
+					player.intent = "fishing";
+					debugMsg("intent = FISHING");
+				} else {
+					player.intent = "none";
+					debugMsg("intent = NONE");
+				}
+
 				player.xDes = event.offsetX;
 				player.yDes = event.offsetY;
-				mouse_x = event.offsetX;
-				mouse_y = event.offsetY;
 				playerMoveAngle = getMoveAngle(player.xPos, player.xDes, player.yPos, player.yDes);
-				debugMsg("I want to move to [" + player.xDes + " , " + player.yDes + "]   Angle = " 
-					                                    + Math.round(playerMoveAngle*180/Math.PI) + " degs");
+				//debugMsg("I want to move to [" + player.xDes + " , " + player.yDes + "]   Angle = " 
+				//	                                    + Math.round(playerMoveAngle*180/Math.PI) + " degs");
 
 				// Set the facing direction
 				if (player.xDes - player.xPos >= 0) {
 					player.facing = "right";
-					debugMsg("right");
+					//debugMsg("right");
 				} else {
-					debugMsg("left");
+					//debugMsg("left");
 					player.facing = "left";
 				}
-				debugMsg("player facing = " + player.facing);
+				//debugMsg("player facing = " + player.facing);
 
 				document.getElementById('chatbox').focus();
 			}
@@ -368,6 +410,28 @@ function mainLoop() {
 		drawEquipped();
 		drawOtherEquipped();
 
+		// Draw environment
+		drawFishArea();
+
+		// Draw fishing
+		drawFishing();
+		drawOtherFishing();
+
+		// Player making $10 every 5 seconds from fishing
+		if (player.state == "fishing" && canFishTick == true) {
+			setTimeout(function() {
+				debugMsg("yay got $10....");
+				socket.emit("money", 10);
+				player.money += 10;		
+
+				canFishTick = true;
+			}, 1000);
+			canFishTick = false;
+		}
+
+		// Draw mouse icon
+		drawMouseIcon();
+
 		// Draw inventory (if opened)
 		if (inventOpen) {
 			drawInventory();
@@ -382,12 +446,85 @@ function mainLoop() {
 		ctx.rect(invent_x-invent_len/2, invent_y-invent_len/2, invent_len, invent_len);
 		ctx.stroke();
 
+		// Draw money
+		ctx.fillText("Money: "+player.money, invent_x + 100, invent_y);
+
 		// Some debugging stuff
 		if (debug) { 
 			drawCollisions(); 
 			ctx.fillText("[" + mouse_x + "," + mouse_y + "]", 50, 50);
 		}
 	}
+}
+
+
+// Draw other players fishing
+function drawOtherFishing() {
+	for (i in localPList) {
+		if (i != socket.id) {
+
+			// Draw fishing pole when fishing
+			if (localPList[i].state == "fishing") {
+
+				// Draw fishing pole direction
+				if (localPList[i].xPos <= fishArea_x) {
+					ctx.drawImage(images["fishingRod"], localPList[i].xPos-stickColW/2+20, localPList[i].yPos-stickColH/2-30);
+				} else {
+					ctx.translate(Math.round(localPList[i].xPos+images["stickman"].width/2), Math.round(localPList[i].yPos-images["stickman"].height/2))
+					ctx.scale(-1, 1);
+					ctx.drawImage(images["fishingRod"], 0, 0);
+					ctx.setTransform(1, 0, 0, 1, 0, 0)
+				}
+			}
+		}	
+	}
+}
+
+// Draw the player fishing
+function drawFishing() {
+	// Draw fishing pole when fishing
+	if (player.state == "fishing") {
+
+		// Draw pole direction
+		if (player.xPos <= fishArea_x) {					
+			ctx.drawImage(images["fishingRod"], player.xPos-stickColW/2+20, player.yPos-stickColH/2-30);
+		} else {
+			ctx.translate(Math.round(player.xPos+images["stickman"].width/2-20), Math.round(player.yPos-images["stickman"].height/2-30))
+			ctx.scale(-1, 1);
+			ctx.drawImage(images["fishingRod"], 0, 0);
+			ctx.setTransform(1, 0, 0, 1, 0, 0)
+		}
+	}
+}
+
+// Perform actions after stopping
+function justStopped() {
+	var fishImage = images["fishArea"];
+	if (player.intent == "fishing" && 
+		((((player.xPos+stickColW/2 >= fishArea_x - fishImage.width/2 && player.xPos+stickColW/2 <= fishArea_x + fishImage.width/2) ||
+           (player.xPos-stickColW/2 >= fishArea_x - fishImage.width/2 && player.xPos-stickColW/2 <= fishArea_x + fishImage.width/2)) &&
+	      ((player.yPos+stickColH/2 >= fishArea_y - fishImage.height/2 && player.yPos+stickColH/2 <= fishArea_y + fishImage.height/2) ||
+	       (player.yPos-stickColH/2 >= fishArea_y - fishImage.height/2 && player.yPos-stickColH/2 <= fishArea_y + fishImage.height/2))))) {
+		player.state = "fishing";
+		debugMsg("FISHING STATE ON - collsion boundary");
+
+		// Tell server
+		socket.emit("fishing", true);
+	}	
+}
+
+// Draw mouse icon
+function drawMouseIcon() {
+	if (mouseIcon == "fishing") {
+		var image = images["fishingIcon"];
+		ctx.drawImage(image, mouse_x, mouse_y);
+	}
+}
+
+// Draw fishing areas
+function drawFishArea() {
+	var image = images["fishArea"];
+	ctx.drawImage(image, fishArea_x-image.width/2, fishArea_y-image.height/2);
 }
 
 // Push the word to the chat history array
@@ -601,7 +738,6 @@ function updatePlayer() {
 
 	// Moves the player from current position to destination position (client side prediction)
 	var speed = playerSpeed;
-
 	if (player.xDes != -1 && player.yDes != -1) {
 
 		var tempX = calculateXPos(player.xPos, player.xDes, speed, playerMoveAngle);
@@ -609,20 +745,33 @@ function updatePlayer() {
 
 		// Stop moving if we reached collision boundary
 		if (checkCollision(tempX, tempY)) {
-			player.xDes = player.xPos;
-			player.yDes = player.yPos;
+			player.xDes = -1;
+			player.yDes = -1;
+
+			justStopped();	
 
 		// No collision, so keep going :D
 		} else {
 			player.xPos = tempX;
 			player.yPos = tempY;
+
+			// Back to normal state
+			if (player.state != -1) {
+				player.state = -1;
+				debugMsg("BACK TO NORMAL STATE");
+
+				socket.emit("fishing", false);
+			}
+
+			// Player reached destination, stop moving
+			if (player.xPos == player.xDes && player.yPos == player.yDes) {
+				player.xDes = -1;
+				player.yDes = -1;
+
+				justStopped();
+			}
 		}
 
-		// Player reached destination, stop moving
-		if (player.xPos == player.xDes && player.yPos == player.yDes) {
-			player.xDes = -1;
-			player.yDes = -1;
-		}
 	}
 }
 

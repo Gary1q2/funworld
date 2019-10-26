@@ -97,7 +97,10 @@ io.on('connection', function(socket) {
 				head: -1,
 				body: -1,
 				hand: -1,
-				invent: [0, 1, 2]
+				invent: [0, 1, 2],
+				intent: -1,
+				state: -1,
+				money: 0
 			};
 
 			// Add new player into the server information + save socket
@@ -186,6 +189,20 @@ io.on('connection', function(socket) {
 		} else if (body == "hand") {
 			pList[socket.id].hand = -1;
 		}
+	});
+
+	// Player is fishing or not
+	socket.on('fishing', function(data) {
+		if (data == true) {
+			pList[socket.id].state = "fishing";
+		} else {
+			pList[socket.id].state = "none";
+		}
+	});
+
+	// Update player money
+	socket.on('money', function(data) {
+		pList[socket.id].money += data;
 	});
 
 });
