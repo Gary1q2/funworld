@@ -3,9 +3,9 @@ const ip = "0.0.0.0";
 
 // Setting items WARNING could be different to client
 var items = {};
-setItem(0, "lollypop", "hand", "static/lollypop.png");
-setItem(1, "helmet", "head", "static/helmet.png");
-setItem(2, "armour", "body", "static/armour.png");
+setItem(0, "lollypop", "hand", 50, "static/lollypop.png");
+setItem(1, "helmet", "head", 100, "static/helmet.png");
+setItem(2, "armour", "body", 89, "static/armour.png");
 
 
 
@@ -193,16 +193,20 @@ io.on('connection', function(socket) {
 
 	// Player is fishing or not
 	socket.on('fishing', function(data) {
-		if (data == true) {
-			pList[socket.id].state = "fishing";
-		} else {
-			pList[socket.id].state = "none";
+		if (pList[socket.id] != undefined) {
+			if (data == true) {
+				pList[socket.id].state = "fishing";
+			} else {
+				pList[socket.id].state = "none";
+			}
 		}
 	});
 
 	// Update player money
 	socket.on('money', function(data) {
-		pList[socket.id].money += data;
+		if (pList[socket.id] != undefined) {
+			pList[socket.id].money += data;
+		}
 	});
 
 });
@@ -270,10 +274,11 @@ stdin.addListener("data", function(d) {
 
 
 // Initialise item property inside items{}
-function setItem(itemID, name, bodyPart, fileLoc) {
+function setItem(itemID, name, bodyPart, price, fileLoc) {
 	items[itemID] = {
 		name: name,
-		equip: bodyPart
+		equip: bodyPart,
+		price: price
 	};
 }
 

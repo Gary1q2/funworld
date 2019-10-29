@@ -1,9 +1,9 @@
 
 // Setting values for item array
 var items = {};
-setItem(0, "lollypop", "hand", "static/lollypop.png");
-setItem(1, "helmet", "head", "static/helmet.png");
-setItem(2, "armour", "body", "static/armour.png");
+setItem(0, "lollypop", "hand", 50, "static/lollypop.png");
+setItem(1, "helmet", "head", 100, "static/helmet.png");
+setItem(2, "armour", "body", 89, "static/armour.png");
 
 // Loading images for other stuff
 var images = {};
@@ -27,11 +27,10 @@ images.fishingIcon = new Image();
 images.fishingIcon.src = "static/fishingIcon.png";
 images.fishingRod = new Image();
 images.fishingRod.src = "static/fishingRod.png";
-
-
-var invent_x = 625
-var invent_y = 700
-var invent_len = 100
+images.shop = new Image();
+images.shop.src = "static/shop.png";
+images.shopIcon = new Image();
+images.shopIcon.src = "static/shopIcon.png";
 
 var socket = io();
 
@@ -56,22 +55,6 @@ var player = {
 	money: 0
 };
 
-/* player in localPList is not used at ALLL
-
-var player = {
-	name: "",           n/a  
-	xPos: 750,          client side -> server       
-	yPos: 350,          client side -> server
-	xDes: -1,           n/a
-	yDes: -1,           n/a    
-	facing: "right",    client side -> server    
-	head: -1,           client side <-> server
-	body: -1,           client side <-> server
-	hand: -1,           client side <-> server
-	invent: []          client side <-> server
-};
-
-*/
 
 var chatMessage = "";
 var playerCollision = false;
@@ -95,8 +78,20 @@ var inventOpen = false;   // if inventory is opened or not
 var stickColW = 40;
 var stickColH = 100;
 
-var fishArea_x = 890;
+var fishArea_x = 890;  // Coordinates of fishing area
 var fishArea_y = 550;
+
+var invent_x = 625;  // Coordinates and length of inventory button
+var invent_y = 700;
+var invent_len = 100;
+
+var shop_x = 465; // Coordinates of shop
+var shop_y = 430;
+
+var shopHud_x = 200;  // Coordinates of shop hud
+var shopHud_y = 200;
+var shopHud_w = 700;
+var shopHud_h = 400;
 
 var canFishTick = true;
 
@@ -110,8 +105,6 @@ document.getElementById('userInput').focus();
 // Initialising the canvas variable
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
-canvas.width = 1500;
-canvas.height = 800;
 ctx.font = "20px Arial";
 
 
@@ -239,7 +232,7 @@ socket.on("playerChat", function(data) {
 });
 
 // Mouse over different objects
-document.getElementById('canvas').addEventListener("mousemove", function(event) {
+document.getElementById('ui').addEventListener("mousemove", function(event) {
 	if (initialised) {
 
 		// Update the mouse coordinates
@@ -252,6 +245,11 @@ document.getElementById('canvas').addEventListener("mousemove", function(event) 
 			&& event.offsetY >= fishArea_y-images["fishArea"].height/2 && event.offsetY <= fishArea_y+images["fishArea"].height/2) {
 			mouseIcon = "fishing";
 
+		// Mouse over shop -> display shop icon
+		} else if (event.offsetX >= shop_x-images["shop"].width/2 && event.offsetX <= shop_x+images["shop"].width/2
+			&& event.offsetY >= shop_y-images["shop"].height/2 && event.offsetY <= shop_y+images["shop"].height/2) {
+			mouseIcon = "shop";
+
 		// Draw nothing
 		} else {
 			mouseIcon = "none";
@@ -260,19 +258,21 @@ document.getElementById('canvas').addEventListener("mousemove", function(event) 
 })
 
 // Player clicked on the screen
-document.getElementById('canvas').addEventListener("click", function(event) {
+document.getElementById('ui').addEventListener("click", function(event) {
 	if (initialised) {
 
 		// Clicked the inventory button on or off
 		if (event.offsetX >= invent_x-invent_len/2 && event.offsetX <= invent_x+invent_len/2 && event.offsetY >= invent_y-invent_len/2 && event.offsetY <= invent_y+invent_len/2) {
 			inventOpen = !inventOpen;	
 			debugMsg("inventory opened = " + inventOpen);
+
 		} else {
 			var itemClicked = inventItemClicked(event.offsetX, event.offsetY);
 			//debugMsg("CLICKED ON ITEM = " + itemClicked);
 
 			var equipClicked = equipItemClicked(event.offsetX, event.offsetY);
 			//debugMsg("CLICKED on EQUIPMENT = " + equipClicked);		
+
 
 			// Clicked the inventory or equipment
 			if (inventOpen && ((itemClicked != -1) || (equipClicked != -1))) {
@@ -322,6 +322,14 @@ document.getElementById('canvas').addEventListener("click", function(event) {
 					&& event.offsetY >= fishArea_y-images["fishArea"].height/2 && event.offsetY <= fishArea_y+images["fishArea"].height/2) {
 					player.intent = "fishing";
 					debugMsg("intent = FISHING");
+
+				// Clicked the shop
+				} else if (event.offsetX >= shop_x-images["shop"].width/2 && event.offsetX <= shop_x+images["shop"].width/2
+					&& event.offsetY >= shop_y-images["shop"].height/2 && event.offsetY <= shop_y+images["shop"].height/2) {
+					player.intent = "shop";
+					debugMsg("intent = SHOP");
+
+				// Clicked nothing
 				} else {
 					player.intent = "none";
 					debugMsg("intent = NONE");
@@ -412,10 +420,32 @@ function mainLoop() {
 
 		// Draw environment
 		drawFishArea();
+		drawShop();
 
 		// Draw fishing
 		drawFishing();
 		drawOtherFishing();
+
+		// Display shopHUD
+		if (player.state == "shop") {
+			ctx.fillStyle = "#cc8540";
+			ctx.fillRect(shopHud_x, shopHud_y, shopHud_w, shopHud_h);
+			ctx.fillStyle = "#000000";
+
+			var itemSize = 50;
+			var gap = 20;
+
+			// Draw the items in the shop
+			var count = 0;
+			for (i in items) {
+				ctx.beginPath();
+				ctx.lineWidth = "2";
+				ctx.rect(shopHud_x+(count*itemSize)+(count*gap), shopHud_y, itemSize, itemSize);
+				ctx.stroke();
+				ctx.drawImage(items[i].img, shopHud_x+(count*itemSize)+(count*gap), shopHud_y);
+				count++;
+			}
+		}
 
 		// Player making $10 every 5 seconds from fishing
 		if (player.state == "fishing" && canFishTick == true) {
@@ -454,7 +484,26 @@ function mainLoop() {
 			drawCollisions(); 
 			ctx.fillText("[" + mouse_x + "," + mouse_y + "]", 50, 50);
 		}
+
+
+
+		// Testing entities
+		fishArea.update();
+		shop.update();
 	}
+}
+
+
+// Testing entities
+var fishArea = entity(200, 200, images["fishArea"].width, images["fishArea"].height, images["fishArea"]);
+var shop = entity(500, 370, images["shop"].width, images["shop"].height, images["shop"]);
+
+// Checks if two rectangles have a collision (true or false)
+function testCollisionRectRect(rect1, rect2) {
+	return rect1.x <= rect2.x + rect2.width 
+		&& rect2.x <= rect1.x + rect1.width
+		&& rect1.y <= rect2.y + rect2.height
+		&& rect2.y <= rect1.y + rect1.height;
 }
 
 
@@ -470,7 +519,7 @@ function drawOtherFishing() {
 				if (localPList[i].xPos <= fishArea_x) {
 					ctx.drawImage(images["fishingRod"], localPList[i].xPos-stickColW/2+20, localPList[i].yPos-stickColH/2-30);
 				} else {
-					ctx.translate(Math.round(localPList[i].xPos+images["stickman"].width/2), Math.round(localPList[i].yPos-images["stickman"].height/2))
+					ctx.translate(Math.round(localPList[i].xPos+images["stickman"].width/2)-20, Math.round(localPList[i].yPos-images["stickman"].height/2)-30)
 					ctx.scale(-1, 1);
 					ctx.drawImage(images["fishingRod"], 0, 0);
 					ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -510,16 +559,39 @@ function justStopped() {
 
 		// Tell server
 		socket.emit("fishing", true);
-	}	
+	} else if (player.intent == "shop" && 
+		((((player.xPos+stickColW/2 >= shop_x - fishImage.width/2 && player.xPos+stickColW/2 <= shop_x + fishImage.width/2) ||
+           (player.xPos-stickColW/2 >= shop_x - fishImage.width/2 && player.xPos-stickColW/2 <= shop_x + fishImage.width/2)) &&
+	      ((player.yPos+stickColH/2 >= shop_y - fishImage.height/2 && player.yPos+stickColH/2 <= shop_y + fishImage.height/2) ||
+	       (player.yPos-stickColH/2 >= shop_y - fishImage.height/2 && player.yPos-stickColH/2 <= shop_y + fishImage.height/2))))) {
+		player.state = "shop";
+		debugMsg("SHOP STATE ON - collision boundary");
+
+		var str = "";
+		for (var i = 0; i < 5; i++) {
+			str += "<button style=\"left:"+i*200+"px;\" class=\"shopButton\" onclick=\"console.log('fuck')\">hehe</button>";
+		}
+
+		document.getElementById("ui").innerHTML = str;
+
+	}
 }
 
 // Draw mouse icon
 function drawMouseIcon() {
 	if (mouseIcon == "fishing") {
-		var image = images["fishingIcon"];
-		ctx.drawImage(image, mouse_x, mouse_y);
+		ctx.drawImage(images["fishingIcon"], mouse_x, mouse_y);
+	} else if (mouseIcon == "shop") {
+		ctx.drawImage(images["shopIcon"], mouse_x, mouse_y);
 	}
 }
+
+// Draw shop
+function drawShop() {
+	var image = images["shop"];
+	ctx.drawImage(image, shop_x-image.width/2, shop_y-image.height/2);
+}
+
 
 // Draw fishing areas
 function drawFishArea() {
@@ -555,10 +627,11 @@ function drawChatHistory() {
 }
 
 // Initialise item property inside items{}
-function setItem(itemID, name, bodyPart, fileLoc) {
+function setItem(itemID, name, bodyPart, price, fileLoc) {
 	var object = {
 		name: name,
 		equip: bodyPart,
+		price: price,
 		img: new Image()
 	}
 	object.img.src = fileLoc;

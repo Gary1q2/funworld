@@ -7,9 +7,11 @@
     <body>
 
 
-        <canvas id="canvas"></canvas>
+        <canvas id="canvas" width="1500" height="800"></canvas>
+        <div id="ui">
+            
 
-
+        </div>
 
         <div id="hud">
             <div id="playerNum"></div>
@@ -29,10 +31,19 @@
 
     </body>
 
+    <script src="/static/entity.js"></script>
     <script src="/static/game.js"></script>
 </html>
 
 <style>
+
+.shopButton {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    top: 100px;
+}
+
 body, html {
   padding: 0px;
   margin: 0px;
@@ -43,9 +54,9 @@ body, html {
 #userInput {
     font-size: 40;
 }
+
 #loginButton {
     font-size: 40;
-
 }
 
 #login {
@@ -77,15 +88,19 @@ body, html {
 
 #canvas {
     position: absolute;
+    left: 100px;
+    top: 20px;
+} 
+
+#ui {
+    position: absolute;
     width: 1500px;
     height: 800px;
     left: 100px;
     top: 20px;
     border: 1px solid black;
+    border-color: coral;
     cursor: pointer;
-    /*background-color: white;
-    background-image: linear-gradient(rgba(221, 221, 221, 0.4) .1em, transparent .1em), linear-gradient(90deg, rgba(221, 221, 221, 0.4) .1em, transparent .1em);
-    background-size: 1em 1em;*/
 } 
 
 #playerNum {
