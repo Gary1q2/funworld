@@ -31,12 +31,8 @@ socket.on('nullName', function() {
 // Let player know we have been initialised properly
 socket.on('initDone', function(data) { 
 
-    //player.name = data.name;
-
-    //player.speed = data.spd;
     gameTick = data.tick;
     debug = data.debug;
-
 
     // Remove login form
     document.getElementById('login').style.display = "none";
@@ -46,6 +42,5 @@ socket.on('initDone', function(data) {
     document.getElementById('chatbox').style.display = "block";
     
     // Start the main loop
-    initialised = true;
     setInterval(gameLoop, 1000/gameTick);
 });

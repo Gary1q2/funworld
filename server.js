@@ -89,8 +89,6 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 				if (self.state != -1) {
 					self.state = -1;
 					debugMsg("BACK TO NORMAL STATE");
-
-					socket.emit("fishing", false);
 				}
 
 				// Player reached destination, so stop moving
@@ -109,10 +107,6 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 		if (self.intent == "fish" && self.collideWith(fishArea)) {
 			self.state = "fish";
 			debugMsg("FISHING STATE ON");
-
-			// Tell server
-			socket.emit("fishing", true);
-
 		} else if (self.intent == "shop" && self.collideWith(shop)) {
 			self.state = "shop";
 			debugMsg("Shop state on");
@@ -142,10 +136,10 @@ const port = 6969;
 const ip = "0.0.0.0";
 
 // Setting items WARNING could be different to client
-var items = {};
-setItem(0, "lollypop", "hand", 50, "static/lollypop.png");
-setItem(1, "helmet", "head", 100, "static/helmet.png");
-setItem(2, "armour", "body", 89, "static/armour.png");
+//var items = {};
+//setItem(0, "lollypop", "hand", 50, "static/lollypop.png");
+//setItem(1, "helmet", "head", 100, "static/helmet.png");
+//setItem(2, "armour", "body", 89, "static/armour.png");
 
 
 
@@ -180,18 +174,10 @@ var pList = {};  // Stores player information
 var socketList = {};  // Stores player sockets
 var chatLog = [];     // Stores player messages
 
-var playerNum = 0; 
-
 const playerSpeed = 5; // Pixels moved per gametick
 const gameTick = 32;
 var debug = false;
 
-
-
-
-// Height and width of a stickman image
-var stickColW = 40;
-var stickColH = 100;
 
 
 // Collision array
@@ -210,173 +196,11 @@ if (process.argv.length > 2) {
 	}
 }
 
-// Shut server down gracefully upon CTRL + C or interrupt
-process.on('SIGINT', function() {
-	console.log("I'm shutting down baiii");
-	io.sockets.emit('shutdown');
-	process.exit()
-});
-
-// Handles player connections
-io.on('connection', function(socket) {
-
-	// New player joined & submitted their name
-	socket.on('new player', function(data) {
-		if (data) {
-
-			// Setup new player's location information
-			var player = Player(750, 350, data, -1, -1, playerSpeed,
-			                     "right", -1, -1, -1, [], -1, -1, 0);
-
-			// Add new player into the server information + save socket
-			socketList[socket.id] = socket;
-			pList[socket.id] = player;
-
-			// Give player the server state + specific values
-			socket.emit('initDone', {spd: playerSpeed, tick: gameTick, debug: debug, name: player.name});
-			socket.emit('updateState', pList);	
-
-			// Update every client about the new player number
-			playerNum++;
-			io.sockets.emit('playerNum', playerNum);
-			console.log("[" + data + "] has joined ------------- total players online = " + playerNum);
-
-
-		// Error if null username submitted
-		} else {
-			console.log("no name submitted");
-			socket.emit('nullName');
-		}
-	});
-
-	// Disconnect player and update players on new player count
-	socket.on('disconnect', function() {
-		if (pList[socket.id] != undefined) {
-			playerNum--;
-			console.log("player with id [" + socket.id + "] DISCONNECTED!!! ---------- players remaining = " + playerNum);
-			io.sockets.emit('playerNum', playerNum);
-			delete pList[socket.id];
-		}
-	});
-
-	// Player selected a spot to move to
-	socket.on('movement', function(data) {
-		if (pList[socket.id] != undefined) {
-
-			//=========================================================
-			// Check if location is valid <- do once you implement location
-			// CHANGE ..... its sending its current position
-			
-			// Setting intent
-			if (fishArea.checkClick(data.clickX, data.clickY)) {
-				pList[socket.id].intent = "fish";
-			} else if (shop.checkClick(data.clickX, data.clickY)) {
-				pList[socket.id].intent = "shop";
-			} else {	
-				pList[socket.id].intent = "none";
-			}
-
-			debugMsg("["+data.clickX+","+data.clickY+"]");
-			debugMsg("intent = " + pList[socket.id].intent);
-			// Setting destination and facing
-			pList[socket.id].xDes = data.clickX;
-			pList[socket.id].yDes = data.clickY;
-			if (pList[socket.id].xDes - pList[socket.id].x) {
-				pList[socket.id].facing = "right";
-			} else {
-				pList[socket.id].facing = "left";
-			}
-		}
-	});
-
-	// Player sent a message
-	socket.on('chat', function(data) {
-		if (pList[socket.id] != undefined) {
-			console.log("Received message[" + data + "] from player " + socket.id);
-			socket.broadcast.emit('playerChat', {
-				id: socket.id,
-				msg: data
-			});
-
-			// Log the chat into array
-			chatLog.push({id: socket.id, msg: data});
-		}
-	});
-
-	// Player equip an item
-	socket.on('equipItem', function(itemID) {
-		if (pList[socket.id].invent.includes(itemID)) {
-			debugMsg("Player " + pList[socket.id].name + " equiped item " + itemID);
-			var slot = items[itemID].equip;
-			if (slot == "head") {
-				pList[socket.id].head = itemID;
-			} else if (slot == "body") {
-				pList[socket.id].body = itemID;
-			} else if (slot == "hand") {
-				pList[socket.id].hand = itemID;
-			}
-		}
-	});
-
-	// Player unequip an item
-	socket.on('unequipItem', function(body) {
-		debugMsg("Player " + pList[socket.id].name + " unequiped item from " + body);
-		if (body == "head") {
-			pList[socket.id].head = -1;
-		} else if (body == "body") {
-			pList[socket.id].body = -1;
-		} else if (body == "hand") {
-			pList[socket.id].hand = -1;
-		}
-	});
-
-	// Player is fishing or not
-	socket.on('fishing', function(data) {
-		if (pList[socket.id] != undefined) {
-			if (data == true) {
-				pList[socket.id].state = "fishing";
-			} else {
-				pList[socket.id].state = "none";
-			}
-		}
-	});
-
-	// Update player money
-	socket.on('money', function(data) {
-		if (pList[socket.id] != undefined) {
-			pList[socket.id].money += data;
-		}
-	});
-
-});
-
-// Testing entities
-var fishArea = entity(890, 550, 130, 109);
-var shop = entity(465, 430, 145, 143);
-
-
-// Server game loop @ 32 ticks
-setInterval(function() {
-
-	// Update all players
-	for (var i in pList) {
-		pList[i].update();
-	}
-
-
-	// Send to all clients all player states
-	sendPlayerState();
-
-
-}, 1000/gameTick);
-
-
 // Take in console input
 /*
   players - lists all the players on the server
   give [userID] [itemID] - gives a player an item
   pList - displays the pList
-
 */
 stdin.addListener("data", function(d) {
 	var string = d.toString().trim();
@@ -424,73 +248,160 @@ stdin.addListener("data", function(d) {
 });
 
 
+
+// Shut server down gracefully upon CTRL + C or interrupt
+process.on('SIGINT', function() {
+	console.log("I'm shutting down baiii");
+	io.sockets.emit('shutdown');
+	process.exit()
+});
+
+// Handles player connections
+io.on('connection', function(socket) {
+
+	// New player joined & submitted their name
+	socket.on('new player', function(data) {
+		if (data) {
+
+			// Setup new player's location information
+			var player = Player(750, 350, data, -1, -1, playerSpeed,
+			                     "right", -1, -1, -1, [], -1, -1, 0);
+
+			// Add new player into the server information + save socket
+			socketList[socket.id] = socket;
+			pList[socket.id] = player;
+
+			// Give player the server state + specific values
+			socket.emit('initDone', {tick: gameTick, debug: debug});
+			socket.emit('updateState', pList);	
+
+			console.log("[" + data + "] has joined ------------- total players online = " + Object.keys(pList).length);
+
+
+		// Error if null username submitted
+		} else {
+			console.log("no name submitted");
+			socket.emit('nullName');
+		}
+	});
+
+	// Disconnect player and update players on new player count
+	socket.on('disconnect', function() {
+		if (pList[socket.id] != undefined) {
+			console.log("player with id [" + socket.id + "] DISCONNECTED!!! ---------- players remaining = " + Object.keys(pList).length);
+			delete pList[socket.id];
+		}
+	});
+
+	// Player selected a spot to move to
+	socket.on('movement', function(data) {
+		if (pList[socket.id] != undefined) {
+
+			//=========================================================
+			// Check if location is valid <- do once you implement location
+			// CHANGE ..... its sending its current position
+			
+			// Setting intent
+			if (fishArea.checkClick(data.clickX, data.clickY)) {
+				pList[socket.id].intent = "fish";
+			} else if (shop.checkClick(data.clickX, data.clickY)) {
+				pList[socket.id].intent = "shop";
+			} else {	
+				pList[socket.id].intent = "none";
+			}
+
+			debugMsg("intent = " + pList[socket.id].intent);
+
+			// Setting destination and facing
+			pList[socket.id].xDes = data.clickX;
+			pList[socket.id].yDes = data.clickY;
+			if (pList[socket.id].xDes - pList[socket.id].x >= 0) {
+				pList[socket.id].facing = "right";
+			} else {
+				pList[socket.id].facing = "left";
+			}
+		}
+	});
+
+	// Player sent a message
+	/*socket.on('chat', function(data) {
+		if (pList[socket.id] != undefined) {
+			console.log("Received message[" + data + "] from player " + socket.id);
+			socket.broadcast.emit('playerChat', {
+				id: socket.id,
+				msg: data
+			});
+
+			// Log the chat into array
+			chatLog.push({id: socket.id, msg: data});
+		}
+	});
+	// Player equip an item
+	socket.on('equipItem', function(itemID) {
+		if (pList[socket.id].invent.includes(itemID)) {
+			debugMsg("Player " + pList[socket.id].name + " equiped item " + itemID);
+			var slot = items[itemID].equip;
+			if (slot == "head") {
+				pList[socket.id].head = itemID;
+			} else if (slot == "body") {
+				pList[socket.id].body = itemID;
+			} else if (slot == "hand") {
+				pList[socket.id].hand = itemID;
+			}
+		}
+	});
+	// Player unequip an item
+	socket.on('unequipItem', function(body) {
+		debugMsg("Player " + pList[socket.id].name + " unequiped item from " + body);
+		if (body == "head") {
+			pList[socket.id].head = -1;
+		} else if (body == "body") {
+			pList[socket.id].body = -1;
+		} else if (body == "hand") {
+			pList[socket.id].hand = -1;
+		}
+	});*/
+});
+
+
+
+// Testing entities
+var fishArea = entity(890, 550, 130, 109);
+var shop = entity(465, 430, 145, 143);
+
+
+// Server game loop @ 32 ticks
+setInterval(function() {
+
+	// Update all players
+	for (var i in pList) {
+		pList[i].update();
+	}
+
+	// Broadcast everyone's new states
+	for (var i in socketList) {
+		socketList[i].emit('updateState', pList);
+	}
+
+
+}, 1000/gameTick);
+
+
+
+
+// ========================================
+// Functions
+// ========================================
+
+
 // Initialise item property inside items{}
-function setItem(itemID, name, bodyPart, price, fileLoc) {
+/*function setItem(itemID, name, bodyPart, price, fileLoc) {
 	items[itemID] = {
 		name: name,
 		equip: bodyPart,
 		price: price
 	};
-}
-
-
-// Broadcast new player states to all clients
-function sendPlayerState() {
-
-	// Broadcast everyone's new states
-	for (var player in socketList) {
-		socketList[player].emit('updateState', pList);
-	}
-}
-
-// Update all player movement
-function updatePlayerMovement() {
-
-	var speed = playerSpeed;
-
-	for (var i in pList) {
-		if (pList[i].xDes != -1 && pList[i].yDes != -1) {
-			var moveAngle = getMoveAngle(pList[i].x, pList[i].xDes, pList[i].y, pList[i].yDes);
-			var tempX = calculateXPos(pList[i].x, pList[i].xDes, speed, moveAngle);
-			var tempY = calculateYPos(pList[i].y, pList[i].yDes, speed, moveAngle);
-
-			// Reached boundary, stop moving
-			if (checkCollision(tempX, tempY)) {
-				pList[i].xDes = pList[i].x;
-				pList[i].yDes = pList[i].y;
-
-			// No boundary reached, keep moving!
-			} else {
-				pList[i].x = tempX; 
-				pList[i].y = tempY;
-			}	
-
-			// Player reached destination, no more moving
-			if (pList[i].x == pList[i].xDes && pList[i].y == pList[i].yDes) {
-				pList[i].xDes = -1;
-				pList[i].yDes = -1;
-				debugMsg("stopped moving");
-			}
-		}
-	}
-}
-
-
-// Check if passed position collides with any of the rectangles in the collisions[]
-function checkCollision(x, y) {
-	for (var i = 0; i < collisions.length; i++) {
-		if (((x+stickColW/2 >= collisions[i].x && x+stickColW/2 <= collisions[i].x + collisions[i].w) ||
-		   (x-stickColW/2 >= collisions[i].x && x-stickColW/2 <= collisions[i].x + collisions[i].w)) &&
-		   ((y+stickColH/2 >= collisions[i].y && y+stickColH/2 <= collisions[i].y + collisions[i].h) ||
-		   (y-stickColH/2 >= collisions[i].y && y-stickColH/2 <= collisions[i].y + collisions[i].h))) {
-			return true;
-		}
-	}
-	return false
-}
-
-
-
+}*/
 
 
 // Checks if two rectangles have a collision (true or false)
@@ -500,11 +411,6 @@ function testCollisionRectRect(rect1, rect2) {
 		&& rect1.y <= rect2.y + rect2.height
 		&& rect2.y <= rect1.y + rect1.height;
 }
-
-
-
-
-
 
 
 // Moves the player x location on the x axis
