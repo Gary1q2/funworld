@@ -31,9 +31,9 @@ socket.on('nullName', function() {
 // Let player know we have been initialised properly
 socket.on('initDone', function(data) { 
 
-    player.name = data.name;
+    //player.name = data.name;
 
-    player.speed = data.spd;
+    //player.speed = data.spd;
     gameTick = data.tick;
     debug = data.debug;
 

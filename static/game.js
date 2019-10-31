@@ -56,36 +56,10 @@ socket.on('updateState', function(data) {
 // Player clicked on screen
 document.getElementById('ui').addEventListener("click", function(event) {
 
-	// Setting intent
-	//if (fishArea.checkClick(event.offsetX, event.offsetY)) {
-	//	player.intent = "fish";
-	//} else if (shop.checkClick(event.offsetX, event.offsetY)) {
-	//	player.intent = "shop";
-	//} else {	
-	//	player.intent = "none";
-	//}
-
-
-	debugMsg("intent = " + player.intent);
-
-
-	// ========================================
-	// Should client side check here
-
-	//player.xDes = event.offsetX;
-	//player.yDes = event.offsetY;
-
-	if (player.xDes - player.x >= 0) {
-		player.facing = "right";
-	} else {
-		player.facing = "left";
-	}
-
 	// Send position to server
 	socket.emit('movement', {
-		xDes: player.xDes,
-		yDes : player.yDes,
-		facing: player.facing
+		clickX: event.offsetX,
+		clickY: event.offsetY
 	});
 
 	document.getElementById('chatbox').focus();
@@ -98,12 +72,12 @@ document.getElementById('ui').addEventListener("click", function(event) {
 // Testing entities
 var fishArea = entity(890, 550, images["fishArea"].width, images["fishArea"].height, images["fishArea"]);
 var shop = entity(465, 430, images["shop"].width, images["shop"].height, images["shop"]);
-var player = Player(750, 350, "unknown", -1, -1, -1,
-			          "right", -1, -1, -1, [], -1, -1, 0);
+//var player = Player(750, 350, "unknown", -1, -1, -1,
+//			          "right", -1, -1, -1, [], -1, -1, 0);
 
 
 // Other players
-var playerList = {};
+var pList = {};
 
 // Collision array
 var collisions = [];
@@ -119,32 +93,32 @@ function gameLoop() {
 
 	fishArea.update();
 	shop.update();
-	player.update();
+	//player.update();
 
 	for (var i in localPList) {
 
 		// Add the player to the local state
-		if (!(i in playerList)) {
+		if (!(i in pList)) {
 			var temp = localPList[i];
 			debugMsg(temp.x + "-" + temp.y);
 			var p = Player(temp.x, temp.y, temp.name, temp.xDes, temp.yDes, temp.speed, temp.facing, temp.head, temp.body, temp.hand, temp.invent, temp.intent, temp.state, temp.money);
-			playerList[i] = p;
+			pList[i] = p;
 
 		// Update the existing player's state
 		} else {
-			playerList[i].x = localPList[i].x;
-			playerList[i].y = localPList[i].y;
-			playerList[i].xDes = localPList[i].xDes;
-			playerList[i].yDes = localPList[i].yDes;
+			pList[i].x = localPList[i].x;
+			pList[i].y = localPList[i].y;
+			pList[i].xDes = localPList[i].xDes;
+			pList[i].yDes = localPList[i].yDes;
 		}
 	}
 
 
 	// Draw other players
-	for (var i in playerList) {
+	for (var i in pList) {
 		//if (i != socket.id) {
-			playerList[i].update();
-			//debugMsg(playerList[i].x + "-" + playerList[i].y);
+			pList[i].update();
+			//debugMsg(pList[i].x + "-" + pList[i].y);
 		//}
 	}
 

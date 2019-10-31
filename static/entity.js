@@ -53,7 +53,6 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
-		self.updateMovement();
 	}
 
 	// Draw stickman character

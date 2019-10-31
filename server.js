@@ -267,12 +267,25 @@ io.on('connection', function(socket) {
 			// Check if location is valid <- do once you implement location
 			// CHANGE ..... its sending its current position
 			
-			// Update location of player
-			pList[socket.id].x = data.x;
-			pList[socket.id].y = data.y;
-			pList[socket.id].xDes = data.xDes;
-			pList[socket.id].yDes = data.yDes;
-			pList[socket.id].facing = data.facing;
+			// Setting intent
+			if (fishArea.checkClick(data.clickX, data.clickY)) {
+				pList[socket.id].intent = "fish";
+			} else if (shop.checkClick(data.clickX, data.clickY)) {
+				pList[socket.id].intent = "shop";
+			} else {	
+				pList[socket.id].intent = "none";
+			}
+
+			debugMsg("["+data.clickX+","+data.clickY+"]");
+			debugMsg("intent = " + pList[socket.id].intent);
+			// Setting destination and facing
+			pList[socket.id].xDes = data.clickX;
+			pList[socket.id].yDes = data.clickY;
+			if (pList[socket.id].xDes - pList[socket.id].x) {
+				pList[socket.id].facing = "right";
+			} else {
+				pList[socket.id].facing = "left";
+			}
 		}
 	});
 
@@ -337,11 +350,23 @@ io.on('connection', function(socket) {
 
 });
 
+// Testing entities
+var fishArea = entity(890, 550, 130, 109);
+var shop = entity(465, 430, 145, 143);
+
+
 // Server game loop @ 32 ticks
 setInterval(function() {
 
+	// Update all players
+	for (var i in pList) {
+		pList[i].update();
+	}
+
+
 	// Send to all clients all player states
 	sendPlayerState();
+
 
 }, 1000/gameTick);
 
@@ -468,13 +493,23 @@ function checkCollision(x, y) {
 
 
 
+// Checks if two rectangles have a collision (true or false)
+function testCollisionRectRect(rect1, rect2) {
+	return rect1.x <= rect2.x + rect2.width 
+		&& rect2.x <= rect1.x + rect1.width
+		&& rect1.y <= rect2.y + rect2.height
+		&& rect2.y <= rect1.y + rect1.height;
+}
+
+
+
 
 
 
 
 // Moves the player x location on the x axis
 // Given the player's current x position, destination x postion & speed
-function calculatex(x, xDes, speed, angle) {
+function calculateXPos(x, xDes, speed, angle) {
 	if (Math.abs(xDes - x) > speed*Math.cos(angle)) {
 		if (x < xDes) {
 			return (x + (speed*Math.cos(angle)));
