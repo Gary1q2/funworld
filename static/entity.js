@@ -13,27 +13,22 @@ entity = function(x, y, width, height, img) {
 	
 	self.update = function() {
 		self.draw();
+		if (debug) {
+			self.debugDraw();
+		}
 	}
 
 	self.draw = function() {
 		ctx.drawImage(self.img, self.x-(self.width/2), self.y-(self.height/2));
 	}
 
-	// Return if collision (true or false)
-	self.checkCollision = function(other) {
-		var rect1 = {
-			x: self.x - self.width/2,
-			y: self.y - self.height/2,
-			width: self.width,
-			height: self.height
-		};
-		var rect2 = {
-			x: other.x - other.width/2,
-			y: other.y - other.height/2,
-			width: other.width,
-			height: other.height
-		};
-		return testCollisionRectRect(rect1, rect2);
+	// Draw debug values
+	self.debugDraw = function() {
+		ctx.beginPath();
+		ctx.rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height);
+		ctx.stroke();
+
+		ctx.fillText("["+Math.round(self.x)+", "+Math.round(self.y)+"]", self.x, self.y+self.height/2 + 20);
 	}
 
 	return self;
@@ -42,57 +37,47 @@ entity = function(x, y, width, height, img) {
 
 /* Player entity
  */
-player = function() {
-	var self = entity(300, 300, images["stickman"].width, images["stickman"].height, images["stickman"]);
-	self.name = "";
-	self.xDes = -1;
-	self.yDes = -1;
-	self.speed = 8;
-	self.facing = "right";
-	self.head = -1;
-	self.body = -1;
-	self.hand = -1;
-	self.invent = [];
-	self.intent = -1;
-	self.state = -1;
-	self.money = 0;
+Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, invent, intent, state, money) {
+	var self = entity(x, y, images["stickman"].width, images["stickman"].height, images["stickman"]);
+	self.name = name;
+	self.speed = speed;
+	self.facing = facing;
+	self.head = head;
+	self.body = body;
+	self.hand = hand;
+	self.invent = invent;
+	self.intent = intent;
+	self.state = state;
+	self.money = money;
 
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
+		self.updateMovement();
 	}
 
-	// Update player's movement
-	self.updateMovement = function() {
-		if (self.xDes != -1 && self.yDes != -1) {
-			let moveAngle = getMoveAngle(self.x, self.xDes, self.y, self.yDes);
-			let tempX = calculateXPos(self.x, self.xDes, self.speed, moveAngle);
-			let tempY = calculateYPos(self.y, self.yDes, self.speed, moveAngle);
+	// Draw stickman character
+	self.draw = function() {
+		if (self.facing == "right") {
+			ctx.drawImage(self.img, self.x-self.width/2, self.y-self.height/2);	
+		} else {
+			ctx.translate(self.x+self.width/2, self.y-self.height/2)
+			ctx.scale(-1, 1);
+			ctx.drawImage(self.img, 0, 0);
+			ctx.setTransform(1, 0, 0, 1, 0, 0)
+		}
 
-			// need to add COLLISION with boudary
-			//===================================
-			
-			self.x = tempX;
-			self.y = tempY;
-
-			// Back to normal state
-			if (self.state != -1) {
-				self.state = -1;
-				debugMsg("BACK TO NORMAL STATE");
-				socket.emit("fishing", false);
-			}
-
-			// Player reached destination, so stop moving
-			if (self.x == self.xDes && self.y == self.yDes) {
-				self.xDes = -1;
-				self.yDes = -1;
-
-				//=================================
-				//Need to do JUST STOPPED RIGHT HERE
+		// Draw fishing rod when fishing
+		if (self.state == "fish") {
+			if (self.x <= fishArea.x) {
+				ctx.drawImage(images["fishingRod"], self.x-self.width/2+20, self.y-self.height/2-30);
+			} else {
+				ctx.translate(self.x+self.width/2-20, self.y-self.height/2-30);
+				ctx.scale(-1, 1);
+				ctx.drawImage(images["fishingRod"], 0, 0);
+				ctx.setTransform(1, 0, 0, 1, 0, 0)
 			}
 		}
 	}
-
-
 	return self;
 }

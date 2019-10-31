@@ -1,3 +1,143 @@
+/* Basic entity that literally does nothing
+   -coordinates (x, y) are at the center of the image
+   -width & height are the collision bounds
+ */
+entity = function(x, y, width, height) {
+	var self = {
+		x: x,
+		y: y,
+		width: width,
+		height: height
+	};
+
+	// Return if collision with other object (true or false)
+	self.collideWith = function(other) {
+		var rect1 = {
+			x: self.x - self.width/2,
+			y: self.y - self.height/2,
+			width: self.width,
+			height: self.height
+		};
+		var rect2 = {
+			x: other.x - other.width/2,
+			y: other.y - other.height/2,
+			width: other.width,
+			height: other.height
+		};
+		return testCollisionRectRect(rect1, rect2);
+	}
+
+	// Return if clicked (true or false)
+	self.checkClick = function(mouseX, mouseY) {
+		return (mouseX >= self.x - self.width/2 && mouseX <= self.x + self.width/2 && 
+			    mouseY >= self.y - self.height/2 && mouseY <= self.y + self.height/2);
+	}
+	return self;
+}
+
+
+
+/* Player entity
+ */
+Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, invent, intent, state, money) {
+	var self = entity(x, y, 52, 90);
+	self.name = name;
+	self.xDes = xDes;
+	self.yDes = yDes;
+	self.speed = speed;
+	self.facing = facing;
+	self.head = head;
+	self.body = body;
+	self.hand = hand;
+	self.invent = invent;
+	self.intent = intent;
+	self.state = state;
+	self.money = money;
+
+	self.update = function() {
+		self.updateMovement();
+	}
+
+
+	// Update player's movement
+	self.updateMovement = function() {
+		if (self.xDes != -1 && self.yDes != -1) {
+			let moveAngle = getMoveAngle(self.x, self.xDes, self.y, self.yDes);
+			var tempX = calculateXPos(self.x, self.xDes, self.speed, moveAngle);
+			var tempY = calculateYPos(self.y, self.yDes, self.speed, moveAngle);
+			var oldX = self.x;
+			var oldY = self.y;
+			self.x = tempX;
+			self.y = tempY;
+
+			if (self.checkCollision()) {
+
+				// Jump back position
+				self.x = oldX;
+				self.y = oldY;
+
+				self.xDes = -1;
+				self.yDes = -1;
+				self.justStopped();
+
+			// No collision, so keep going
+			} else {
+				self.x = tempX;
+				self.y = tempY;
+
+				// Back to normal state
+				if (self.state != -1) {
+					self.state = -1;
+					debugMsg("BACK TO NORMAL STATE");
+
+					socket.emit("fishing", false);
+				}
+
+				// Player reached destination, so stop moving
+				if (self.x == self.xDes && self.y == self.yDes) {
+					self.xDes = -1;
+					self.yDes = -1;
+					self.justStopped();
+				}
+
+			}
+		}
+	}
+
+	// Execute actions after player just stopped moving
+	self.justStopped = function() {
+		if (self.intent == "fish" && self.collideWith(fishArea)) {
+			self.state = "fish";
+			debugMsg("FISHING STATE ON");
+
+			// Tell server
+			socket.emit("fishing", true);
+
+		} else if (self.intent == "shop" && self.collideWith(shop)) {
+			self.state = "shop";
+			debugMsg("Shop state on");
+		}
+	}
+
+	// Check if player is colliding with a wall
+	self.checkCollision = function() {
+		for (let i = 0; i < collisions.length; i++) {
+			if (self.collideWith(collisions[i])) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	return self;
+}
+
+
+
+
+
+
+
 const port = 6969;
 const ip = "0.0.0.0";
 
@@ -41,26 +181,24 @@ var socketList = {};  // Stores player sockets
 var chatLog = [];     // Stores player messages
 
 var playerNum = 0; 
+
 const playerSpeed = 5; // Pixels moved per gametick
 const gameTick = 32;
-
-
-
-
 var debug = false;
+
+
+
 
 // Height and width of a stickman image
 var stickColW = 40;
 var stickColH = 100;
 
-// Adding collision squares to the collision array
+
+// Collision array
 var collisions = [];
-var rect = {x: 1252, y: 231, h: 300, w: 300};
-collisions.push(rect);
-var rect = {x: 714,	y: 507,	h: 400,	w: 700};
-collisions.push(rect);
-var rect = {x: 182,	y: 689,	h: 400,	w: 800};
-collisions.push(rect);
+collisions.push(entity(1252+150, 231+150, 300, 300));
+collisions.push(entity(714+350, 507+200, 700, 400));
+collisions.push(entity(182+400, 689+200, 800, 400));
 
 
 
@@ -87,30 +225,16 @@ io.on('connection', function(socket) {
 		if (data) {
 
 			// Setup new player's location information
-			var playerInfo = {
-				name: data,
-				xPos: 750,
-				yPos: 350,
-				xDes: -1,
-				yDes: -1,
-				facing: "right",
-				head: -1,
-				body: -1,
-				hand: -1,
-				invent: [0, 1, 2],
-				intent: -1,
-				state: -1,
-				money: 0
-			};
+			var player = Player(750, 350, data, -1, -1, playerSpeed,
+			                     "right", -1, -1, -1, [], -1, -1, 0);
 
 			// Add new player into the server information + save socket
 			socketList[socket.id] = socket;
-			pList[socket.id] = playerInfo;
+			pList[socket.id] = player;
 
 			// Give player the server state + specific values
-			socket.emit('initDone', {spd: playerSpeed, tick: gameTick, debug: debug});
-			socket.emit('updateState', pList);
-			debugMsg(data);	
+			socket.emit('initDone', {spd: playerSpeed, tick: gameTick, debug: debug, name: player.name});
+			socket.emit('updateState', pList);	
 
 			// Update every client about the new player number
 			playerNum++;
@@ -144,8 +268,10 @@ io.on('connection', function(socket) {
 			// CHANGE ..... its sending its current position
 			
 			// Update location of player
-			pList[socket.id].xPos = data.x;
-			pList[socket.id].yPos = data.y;
+			pList[socket.id].x = data.x;
+			pList[socket.id].y = data.y;
+			pList[socket.id].xDes = data.xDes;
+			pList[socket.id].yDes = data.yDes;
 			pList[socket.id].facing = data.facing;
 		}
 	});
@@ -299,23 +425,23 @@ function updatePlayerMovement() {
 
 	for (var i in pList) {
 		if (pList[i].xDes != -1 && pList[i].yDes != -1) {
-			var moveAngle = getMoveAngle(pList[i].xPos, pList[i].xDes, pList[i].yPos, pList[i].yDes);
-			var tempX = calculateXPos(pList[i].xPos, pList[i].xDes, speed, moveAngle);
-			var tempY = calculateYPos(pList[i].yPos, pList[i].yDes, speed, moveAngle);
+			var moveAngle = getMoveAngle(pList[i].x, pList[i].xDes, pList[i].y, pList[i].yDes);
+			var tempX = calculateXPos(pList[i].x, pList[i].xDes, speed, moveAngle);
+			var tempY = calculateYPos(pList[i].y, pList[i].yDes, speed, moveAngle);
 
 			// Reached boundary, stop moving
 			if (checkCollision(tempX, tempY)) {
-				pList[i].xDes = pList[i].xPos;
-				pList[i].yDes = pList[i].yPos;
+				pList[i].xDes = pList[i].x;
+				pList[i].yDes = pList[i].y;
 
 			// No boundary reached, keep moving!
 			} else {
-				pList[i].xPos = tempX; 
-				pList[i].yPos = tempY;
+				pList[i].x = tempX; 
+				pList[i].y = tempY;
 			}	
 
 			// Player reached destination, no more moving
-			if (pList[i].xPos == pList[i].xDes && pList[i].yPos == pList[i].yDes) {
+			if (pList[i].x == pList[i].xDes && pList[i].y == pList[i].yDes) {
 				pList[i].xDes = -1;
 				pList[i].yDes = -1;
 				debugMsg("stopped moving");
@@ -326,12 +452,12 @@ function updatePlayerMovement() {
 
 
 // Check if passed position collides with any of the rectangles in the collisions[]
-function checkCollision(xPos, yPos) {
+function checkCollision(x, y) {
 	for (var i = 0; i < collisions.length; i++) {
-		if (((xPos+stickColW/2 >= collisions[i].x && xPos+stickColW/2 <= collisions[i].x + collisions[i].w) ||
-		   (xPos-stickColW/2 >= collisions[i].x && xPos-stickColW/2 <= collisions[i].x + collisions[i].w)) &&
-		   ((yPos+stickColH/2 >= collisions[i].y && yPos+stickColH/2 <= collisions[i].y + collisions[i].h) ||
-		   (yPos-stickColH/2 >= collisions[i].y && yPos-stickColH/2 <= collisions[i].y + collisions[i].h))) {
+		if (((x+stickColW/2 >= collisions[i].x && x+stickColW/2 <= collisions[i].x + collisions[i].w) ||
+		   (x-stickColW/2 >= collisions[i].x && x-stickColW/2 <= collisions[i].x + collisions[i].w)) &&
+		   ((y+stickColH/2 >= collisions[i].y && y+stickColH/2 <= collisions[i].y + collisions[i].h) ||
+		   (y-stickColH/2 >= collisions[i].y && y-stickColH/2 <= collisions[i].y + collisions[i].h))) {
 			return true;
 		}
 	}
@@ -348,39 +474,39 @@ function checkCollision(xPos, yPos) {
 
 // Moves the player x location on the x axis
 // Given the player's current x position, destination x postion & speed
-function calculateXPos(xPos, xDes, speed, angle) {
-	if (Math.abs(xDes - xPos) > speed*Math.cos(angle)) {
-		if (xPos < xDes) {
-			return (xPos + (speed*Math.cos(angle)));
-		} else if (xPos > xDes) {
-			return (xPos - (speed*Math.cos(angle)));
+function calculatex(x, xDes, speed, angle) {
+	if (Math.abs(xDes - x) > speed*Math.cos(angle)) {
+		if (x < xDes) {
+			return (x + (speed*Math.cos(angle)));
+		} else if (x > xDes) {
+			return (x - (speed*Math.cos(angle)));
 		}
-	} else if (Math.abs(xDes - xPos) > 0) {
+	} else if (Math.abs(xDes - x) > 0) {
 		return xDes;
 	} else {
-		return xPos;
+		return x;
 	}
 }
 
 // Moves the player y location on the y axis
 // Given the player's current y position, destination y postion & speed
-function calculateYPos(yPos, yDes, speed, angle) {
-	if (Math.abs(yDes - yPos) > speed*Math.sin(angle)) {
-		if (yPos < yDes) {
-			return (yPos + (speed*Math.sin(angle)));
-		} else if (yPos > yDes) {
-			return (yPos - (speed*Math.sin(angle)));
+function calculateYPos(y, yDes, speed, angle) {
+	if (Math.abs(yDes - y) > speed*Math.sin(angle)) {
+		if (y < yDes) {
+			return (y + (speed*Math.sin(angle)));
+		} else if (y > yDes) {
+			return (y - (speed*Math.sin(angle)));
 		}
-	} else if (Math.abs(yDes - yPos) > 0) {
+	} else if (Math.abs(yDes - y) > 0) {
 		return yDes;
 	} else {
-		return yPos;
+		return y;
 	}
 }
 
 // Calculate the move angle given the player's current position and destination
-function getMoveAngle(xPos, xDes, yPos, yDes) {
-	return Math.abs(Math.atan((Math.abs(yDes-yPos)/(xDes-xPos))));
+function getMoveAngle(x, xDes, y, yDes) {
+	return Math.abs(Math.atan((Math.abs(yDes-y)/(xDes-x))));
 }
 
 // Print debug messages only if debug mode is true
