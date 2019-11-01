@@ -54,8 +54,12 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	self.state = state;
 	self.money = money;
 
+	self.lastMsg = "";
+	self.lastMsgTime = 0;
+
 	self.update = function() {
 		self.updateMovement();
+		self.updateChatHead();
 	}
 
 
@@ -99,6 +103,13 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 				}
 
 			}
+		}
+	}
+
+	// Tick the player chat message above head
+	self.updateChatHead = function() {
+		if (self.lastMsgTime > 0) {
+			self.lastMsgTime--;
 		}
 	}
 
@@ -357,6 +368,10 @@ io.on('connection', function(socket) {
 		if (pList[socket.id] != undefined) {
 			console.log("Received message[" + data + "] from player " + socket.id);
 			chatHistory.pushMsg(pList[socket.id].name, data);
+
+			// Set player's last message sent
+			pList[socket.id].lastMsg = data;
+			pList[socket.id].lastMsgTime = gameTick * 5;
 		}
 	});
 

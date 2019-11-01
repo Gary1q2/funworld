@@ -127,6 +127,8 @@ function gameLoop() {
 			pList[i].intent = localPList[i].intent
 			pList[i].state = localPList[i].state;
 			pList[i].money = localPList[i].money;
+			pList[i].lastMsg = localPList[i].lastMsg;
+			pList[i].lastMsgTime = localPList[i].lastMsgTime;
 		}
 	}
 

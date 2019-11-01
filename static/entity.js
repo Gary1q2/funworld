@@ -50,9 +50,13 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	self.state = state;
 	self.money = money;
 
+	self.lastMsg = "";
+	self.lastMsgTime = 0;
+
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
+		self.drawChatHead();
 		self.debugDraw();
 	}
 
@@ -77,6 +81,13 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 				ctx.drawImage(images["fishingRod"], 0, 0);
 				ctx.setTransform(1, 0, 0, 1, 0, 0)
 			}
+		}
+	}
+
+	// Draw chat messages above head
+	self.drawChatHead = function() {
+		if (self.lastMsgTime > 0) {
+			ctx.fillText(self.lastMsg, self.x-ctx.measureText(self.lastMsg).width/2, self.y - self.height/2 - 20);
 		}
 	}
 
