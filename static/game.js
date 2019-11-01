@@ -32,6 +32,7 @@ var gameTick;
 var debug;
 var localPList;   // Server state
 var pList = {};   // Array of all the players
+var chatHistory;
 
 // Initialising the canvas variable
 var canvas = document.getElementById('canvas');
@@ -45,6 +46,10 @@ socket.on('updateState', function(data) {
 	localPList = data;
 });
 
+// Receive update on chat history
+socket.on('updateChat', function(data) {
+	chatHistory = data;
+});
 
 
 // Player clicked on screen
@@ -58,6 +63,21 @@ document.getElementById('ui').addEventListener("click", function(event) {
 	document.getElementById('chatbox').focus();
 });
 
+// Handling key presses
+document.onkeypress = function(event) {
+
+	switch (event.keyCode) {
+
+		// Press enter to send a message
+		case 13:
+			var msg = document.getElementById("chatbox").value;
+			if (msg != "") {
+				socket.emit('chat', msg);
+				document.getElementById("chatbox").value = "";
+			}
+			break;
+	}
+}
 
 
 
@@ -122,6 +142,16 @@ function gameLoop() {
 	for (var i in pList) {
 		pList[i].update();
 	}
+
+	// Draw the chat to the screen
+	var string = "";
+	for (var i = chatHistory.length-1; i >= 0; i--) {
+		if (chatHistory[i].name != "") {
+			string += chatHistory[i].name+": "+chatHistory[i].msg+"<br/>";
+		}
+	}
+	document.getElementById('chatHistory').innerHTML = string;
+
 
 	// Update the player number HUD & name
 	document.getElementById('playerNum').innerHTML = "Players online: " + Object.keys(pList).length;

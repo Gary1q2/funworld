@@ -9,13 +9,14 @@
 
         <canvas id="canvas" width="1500" height="800"></canvas>
         <div id="ui">
-            
+            <div id="chatHistory"></div>
 
         </div>
 
         <div id="hud">
             <div id="playerNum"></div>
             <div id="playerName"></div>
+            
             <input id="chatbox" type="text"> 
         </div>
    
@@ -41,11 +42,15 @@
 
 <style>
 
-.shopButton {
+#chatHistory {
     position: absolute;
-    width: 50px;
-    height: 50px;
-    top: 100px;
+    height: 350px;
+    width: 400px;
+    right: 30px;
+    top: 40%;
+    border: 4px solid black;
+    font-size: 30px;
+    font
 }
 
 body, html {
@@ -76,6 +81,7 @@ body, html {
     margin: -50 0 0 -350px;
     font-size: 40px;
     text-align: center;
+    font-family: Arial;
 }
 
 
@@ -88,6 +94,7 @@ body, html {
     left: 100px;
     bottom: -10px;
     font-size: 40px;
+    font-family: Arial;
 }
 
 #canvas {
@@ -105,6 +112,7 @@ body, html {
     border: 1px solid black;
     border-color: coral;
     cursor: pointer;
+    font-family: Arial;
 } 
 
 #playerNum {

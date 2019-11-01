@@ -53,6 +53,7 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
+		self.debugDraw();
 	}
 
 	// Draw stickman character
@@ -77,6 +78,15 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 				ctx.setTransform(1, 0, 0, 1, 0, 0)
 			}
 		}
+	}
+
+	// Draw debug variables
+	self.debugDraw = function() {
+		ctx.fillText("["+Math.round(self.x)+","+Math.round(self.y)+"]", self.x, self.y+70);
+		ctx.fillText(self.name, self.x,self.y+90);
+		ctx.fillText("state="+self.state,self.x,self.y+110);
+		ctx.fillText("$"+self.money,self.x,self.y+130);
+		ctx.fillText("intent="+self.intent,self.x,self.y+150);		
 	}
 	return self;
 }

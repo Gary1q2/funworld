@@ -127,6 +127,30 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 }
 
 
+/* Chat system
+ */
+Chat = function(len) {
+	var self = {
+		messages: Array(len).fill({
+			name: "",
+			msg: ""
+		})
+	};
+
+	self.pushMsg = function(name, msg) {
+		for (var i = self.messages.length-1; i > 0; i--) {
+			self.messages[i] = self.messages[i-1];
+		}
+		self.messages[0] = {
+			name: name,
+			msg: msg
+		};
+	}
+
+	return self;
+}
+
+
 
 
 
@@ -172,7 +196,6 @@ server.listen(app.get('port'), ip, function() {
 // Variables   
 var pList = {};  // Stores player information
 var socketList = {};  // Stores player sockets
-var chatLog = [];     // Stores player messages
 
 const playerSpeed = 5; // Pixels moved per gametick
 const gameTick = 32;
@@ -201,6 +224,7 @@ if (process.argv.length > 2) {
   players - lists all the players on the server
   give [userID] [itemID] - gives a player an item
   pList - displays the pList
+  chat - displays current chat history
 */
 stdin.addListener("data", function(d) {
 	var string = d.toString().trim();
@@ -220,6 +244,11 @@ stdin.addListener("data", function(d) {
 		// pList command
 		} else if (args[0] == "pList") {
 			console.log(pList);
+
+		// chat command
+		} else if (args[0] == "chat") {
+			console.log(chat);
+
 		} else {
 			console.log("Unknown command");
 		}
@@ -324,18 +353,14 @@ io.on('connection', function(socket) {
 	});
 
 	// Player sent a message
-	/*socket.on('chat', function(data) {
+	socket.on('chat', function(data) {
 		if (pList[socket.id] != undefined) {
 			console.log("Received message[" + data + "] from player " + socket.id);
-			socket.broadcast.emit('playerChat', {
-				id: socket.id,
-				msg: data
-			});
-
-			// Log the chat into array
-			chatLog.push({id: socket.id, msg: data});
+			chatHistory.pushMsg(pList[socket.id].name, data);
 		}
 	});
+
+	/*
 	// Player equip an item
 	socket.on('equipItem', function(itemID) {
 		if (pList[socket.id].invent.includes(itemID)) {
@@ -368,7 +393,7 @@ io.on('connection', function(socket) {
 // Testing entities
 var fishArea = entity(890, 550, 130, 109);
 var shop = entity(465, 430, 145, 143);
-
+var chatHistory = Chat(10);
 
 // Server game loop @ 32 ticks
 setInterval(function() {
@@ -378,9 +403,10 @@ setInterval(function() {
 		pList[i].update();
 	}
 
-	// Broadcast everyone's new states
+	// Broadcast everyone's new states + chat
 	for (var i in socketList) {
 		socketList[i].emit('updateState', pList);
+		socketList[i].emit('updateChat', chatHistory.messages);
 	}
 
 

@@ -10,24 +10,7 @@ setItem(2, "armour", "body", 89, "static/armour.png");
 
 // Local variables
 var shutdown = false;             // Indicates if server is shutting down
-var initialised = false;          // Indicates if player has initialised his name
 
-// Local player variable
-var player = {
-	name: "",            // set by client from setName
-	xPos: 750,           // client side prediction pos
-	yPos: 350,           // ...
-	xDes: -1,            // client side prediction des
-	yDes: -1,            // ...
-	facing: "right",     // client side prediction facing
-	head: -1,
-	body: -1,
-	hand: -1,
-	invent: [],
-	intent: -1,
-	state: -1,
-	money: 0
-};
 
 
 var chatMessage = "";
