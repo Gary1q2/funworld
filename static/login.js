@@ -33,6 +33,7 @@ socket.on('initDone', function(data) {
 
     gameTick = data.tick;
     debug = data.debug;
+    items = data.items;
 
     // Remove login form
     document.getElementById('login').style.display = "none";

@@ -142,17 +142,17 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
  */
 Chat = function(len) {
 	var self = {
-		messages: Array(len).fill({
+		array: Array(len).fill({
 			name: "",
 			msg: ""
 		})
 	};
 
 	self.pushMsg = function(name, msg) {
-		for (var i = self.messages.length-1; i > 0; i--) {
-			self.messages[i] = self.messages[i-1];
+		for (var i = self.array.length-1; i > 0; i--) {
+			self.array[i] = self.array[i-1];
 		}
-		self.messages[0] = {
+		self.array[0] = {
 			name: name,
 			msg: msg
 		};
@@ -161,6 +161,30 @@ Chat = function(len) {
 	return self;
 }
 
+/* Item properties
+ */
+Item = function() {
+	var self = {
+		dict: {}
+	};
+
+	self.addItem = function(itemID, name, equip) {
+		self.dict[itemID] = {
+			name: name,
+			equip: equip
+		};
+	}
+
+	self.getName = function(itemID) {
+		return dict[itemID].name;
+	}
+
+	self.getEquip = function(itemID) {
+		return dict[itemID].equip;
+	}
+
+	return self;
+}
 
 
 
@@ -207,18 +231,9 @@ server.listen(app.get('port'), ip, function() {
 // Variables   
 var pList = {};  // Stores player information
 var socketList = {};  // Stores player sockets
-
 const playerSpeed = 5; // Pixels moved per gametick
 const gameTick = 32;
 var debug = false;
-
-
-
-// Collision array
-var collisions = [];
-collisions.push(entity(1252+150, 231+150, 300, 300));
-collisions.push(entity(714+350, 507+200, 700, 400));
-collisions.push(entity(182+400, 689+200, 800, 400));
 
 
 
@@ -258,7 +273,7 @@ stdin.addListener("data", function(d) {
 
 		// chat command
 		} else if (args[0] == "chat") {
-			console.log(chat);
+			console.log(chatHistory);
 
 		} else {
 			console.log("Unknown command");
@@ -305,14 +320,14 @@ io.on('connection', function(socket) {
 
 			// Setup new player's location information
 			var player = Player(750, 350, data, -1, -1, playerSpeed,
-			                     "right", -1, -1, -1, [], -1, -1, 0);
+			                     "right", 1, 2, 0, [0, 1, 2], -1, -1, 0);
 
 			// Add new player into the server information + save socket
 			socketList[socket.id] = socket;
 			pList[socket.id] = player;
 
 			// Give player the server state + specific values
-			socket.emit('initDone', {tick: gameTick, debug: debug});
+			socket.emit('initDone', {tick: gameTick, debug: debug, items: items});
 			socket.emit('updateState', pList);	
 
 			console.log("[" + data + "] has joined ------------- total players online = " + Object.keys(pList).length);
@@ -410,6 +425,19 @@ var fishArea = entity(890, 550, 130, 109);
 var shop = entity(465, 430, 145, 143);
 var chatHistory = Chat(10);
 
+// Items array
+var items = Item();
+items.addItem(0, "lollypop", "hand");
+items.addItem(1, "helmet", "head");
+items.addItem(2, "armour", "body");
+
+// Collision array
+var collisions = [];
+collisions.push(entity(1252+150, 231+150, 300, 300));
+collisions.push(entity(714+350, 507+200, 700, 400));
+collisions.push(entity(182+400, 689+200, 800, 400));
+
+
 // Server game loop @ 32 ticks
 setInterval(function() {
 
@@ -421,7 +449,7 @@ setInterval(function() {
 	// Broadcast everyone's new states + chat
 	for (var i in socketList) {
 		socketList[i].emit('updateState', pList);
-		socketList[i].emit('updateChat', chatHistory.messages);
+		socketList[i].emit('updateChat', chatHistory.array);
 	}
 
 

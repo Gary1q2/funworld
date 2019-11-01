@@ -10,6 +10,17 @@
         <canvas id="canvas" width="1500" height="800"></canvas>
         <div id="ui">
             <div id="chatHistory"></div>
+            <button id="inventButton" onclick="switchInvent()"></button>
+            <div id="inventory">
+
+            </div>
+
+            <div id="equipment">
+                <button class="inventSq" id="equipHead"></button>
+                <button class="inventSq" id="equipBody"></button>
+                <button class="inventSq" id="equipHand"></button>       
+            </div>
+
 
         </div>
 
@@ -19,10 +30,6 @@
             
             <input id="chatbox" type="text"> 
         </div>
-   
-
-        
-
 
 
         <div id="login">
@@ -41,6 +48,60 @@
 </html>
 
 <style>
+#equipHead {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+}
+
+#equipBody {
+    position: absolute;
+    top: 100px;
+    right: 0px;
+}
+
+#equipHand {
+    position: absolute;
+    top: 100px;
+    right: 100px;
+}
+
+.inventSq {
+    height: 100px;
+    width: 100px;
+    border: 2px solid black;
+    visibility: hidden;
+}
+
+#inventory {
+    position: absolute;
+    height: 300px;
+    width: 300px;
+    left: 100px;
+    top: 200px;
+    border: 4px solid black;
+    visibility: hidden;
+}
+
+#equipment {
+    position: absolute;
+    height: 300px;
+    width: 300px;
+    right: 400px;
+    top: 200px;
+    border: 4px solid black;
+    visibility: hidden;
+}
+
+
+#inventButton {
+    position: absolute;
+    height: 100px;
+    width: 100px;
+    left: 40%;
+    bottom: 100px;
+    background: url('static/inventClose.png') no-repeat center center;
+}
 
 #chatHistory {
     position: absolute;
@@ -50,7 +111,6 @@
     top: 40%;
     border: 4px solid black;
     font-size: 30px;
-    font
 }
 
 body, html {

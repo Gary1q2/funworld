@@ -1,34 +1,3 @@
-
-// Setting values for item array
-var items = {};
-setItem(0, "lollypop", "hand", 50, "static/lollypop.png");
-setItem(1, "helmet", "head", 100, "static/helmet.png");
-setItem(2, "armour", "body", 89, "static/armour.png");
-
-
-
-
-// Local variables
-var shutdown = false;             // Indicates if server is shutting down
-
-
-
-var chatMessage = "";
-var playerCollision = false;
-var playerMoveAngle = 0;
-
-var localPList;               // Local array containing other player's position
-
-var chatHistoryLen = 10;
-var displayChat = 0;                              // Display local player's chat?
-var otherChat = {};                               // Store's other player's chats to be rendered
-var chatHistory = Array(chatHistoryLen).fill(""); // Displays past chat history
-
-
-var playerSpeed;
-var gameTick;
-
-
 var inventOpen = false;   // if inventory is opened or not
 
 var stickColW = 40;
@@ -40,11 +9,6 @@ var invent_y = 700;
 var invent_len = 100;
 
 
-var shopHud_x = 200;  // Coordinates of shop hud
-var shopHud_y = 200;
-var shopHud_w = 700;
-var shopHud_h = 400;
-
 var canFishTick = true;
 
 var mouseIcon = "none"   // Stores what the mouse icon should display
@@ -54,73 +18,12 @@ var mouseIcon = "none"   // Stores what the mouse icon should display
 
 
 
-
-var collisions = [];
-var rect = {x: 1252, y: 231, h: 300, w: 300};
-collisions.push(rect);
-var rect = {x: 714,	y: 507,	h: 400,	w: 700};
-collisions.push(rect);
-var rect = {x: 182,	y: 689,	h: 400,	w: 800};
-collisions.push(rect);
-
-
-var mouse_x = -1;
-var mouse_y = -1;
-
-
-
-// Update the player number counter when player joins or leaves
-socket.on('playerNum', function(data) {
-
-	// Update the number displayed on the HTML
-    document.getElementById('playerNum').innerHTML = "Players online: " + data;
-    debugMsg("got the num packet =" + data);
-});
-
-// Server shutting down, prevent new actions
-socket.on('shutdown', function() {
-	shutdown = true;
-
-	/*
-	shutdown = true (should negate anymore actions that the player makes)
-	*/
-});
-
 // Disconnect from the server GRACEFULLY
 function disconnect() {
 	debugMsg("Requesting to disconnect...");
 	socket.disconnect();
 }
 
-
-
-
-// Receive chat from other player
-socket.on("playerChat", function(data) {
-
-	// Update new word to display
-	if (data.id in otherChat) {
-		debugMsg("updating word!!!");
-		otherChat[data.id].chat = data.msg;
-		otherChat[data.id].displayChat++;
-
-	// Setup hash for player
-	} else {
-		debugMsg("creating new entry in hash")
-		otherChat[data.id] = {
-			chat: data.msg,
-			displayChat: 1
-		};
-	}
-
-	// Add chat to history
-	addChatHistory(data.msg, data.id);
-
-	// Make the text stop showing
-	setTimeout(function() {
-		otherChat[data.id].displayChat--;
-	}, 5000)
-});
 
 // Mouse over different objects
 document.getElementById('ui').addEventListener("mousemove", function(event) {
@@ -213,36 +116,6 @@ document.getElementById('ui').addEventListener("click", function(event) {
 	}
 }, true);
 
-// Handling key presses
-document.onkeypress = function(event) {
-	//debugMsg("pressed key code " + event.keyCode);
-    switch (event.keyCode) {
-
-    	// Press enter to send chat
-    	case 13:
-			debugMsg("Press enter for chat message");
-
-	    	// Send chat message to server if not empty
-			var text = document.getElementById("chatbox").value;
-			if (text != "") {
-				debugMsg("Sent msg to server");
-		    	socket.emit('chat', text);
-		    	document.getElementById("chatbox").value = "";
-
-				// Prepare chat to be rendered
-				chatMessage = text;
-				displayChat++;
-				setTimeout(function() {
-					displayChat--;
-				}, 5000);
-
-				// Push player chat to chat history
-				addChatHistory(text, socket.id);
-			}
-		    break;
-    }
-};
-
 
 
 // Client game loop
@@ -331,29 +204,6 @@ function mainLoop() {
 
 
 
-// Draw other players fishing
-function drawOtherFishing() {
-	for (i in localPList) {
-		if (i != socket.id) {
-
-			// Draw fishing pole when fishing
-			if (localPList[i].state == "fishing") {
-
-				// Draw fishing pole direction
-				if (localPList[i].xPos <= fishArea_x) {
-					ctx.drawImage(images["fishingRod"], localPList[i].xPos-stickColW/2+20, localPList[i].yPos-stickColH/2-30);
-				} else {
-					ctx.translate(Math.round(localPList[i].xPos+images["stickman"].width/2)-20, Math.round(localPList[i].yPos-images["stickman"].height/2)-30)
-					ctx.scale(-1, 1);
-					ctx.drawImage(images["fishingRod"], 0, 0);
-					ctx.setTransform(1, 0, 0, 1, 0, 0)
-				}
-			}
-		}	
-	}
-}
-
-
 
 
 
@@ -367,44 +217,6 @@ function drawMouseIcon() {
 }
 
 
-// Push the word to the chat history array
-function addChatHistory(message, userID) {
-	for (var i = chatHistoryLen-1; i > 0; i--) {
-		chatHistory[i] = chatHistory[i-1];
-	}
-	chatHistory[0] = localPList[userID].name + ": " + message;
-}
-
-// Draw the chat history
-function drawChatHistory() {
-
-	var chatHistory_x = 1000;
-	var chatHistory_y = 700;
-	var gap = 30;
-	var padding = 10;
-
-	// Draw the chat history background
-	ctx.fillStyle = "#cc8540";
-	ctx.fillRect(chatHistory_x-padding, chatHistory_y - (chatHistoryLen * gap) - padding, 400+(2*padding), (chatHistoryLen*gap) + (2*padding))
-	ctx.fillStyle = "#000000";
-
-	// Draw the text
-	for (var i = 0; i < chatHistoryLen; i++) {
-		ctx.fillText(chatHistory[i], chatHistory_x, chatHistory_y - padding - (i * gap));
-	}
-}
-
-// Initialise item property inside items{}
-function setItem(itemID, name, bodyPart, price, fileLoc) {
-	var object = {
-		name: name,
-		equip: bodyPart,
-		price: price,
-		img: new Image()
-	}
-	object.img.src = fileLoc;
-	items[itemID] = object;
-}
 
 
 // Returns the equipment (head, body or hand) that was clicked
@@ -531,125 +343,5 @@ function drawInventory() {
 	if (player.hand != -1) {
 		ctx.drawImage(items[player.hand].img, equipX-len-len/2, equipY+len-len/2);
 	}
-	
-	
 
 }
-
-// Draw all the rectangles in the collisions[] + stickman collision
-function drawCollisions() {
-	// Draw boundary collisions
-	for (var i = 0; i < collisions.length; i++) {
-		ctx.beginPath();
-		ctx.lineWidth = "2";
-		ctx.rect(collisions[i].x, collisions[i].y, collisions[i].w, collisions[i].h);
-		ctx.stroke();
-	}
-
-	// Draw current player collision
-	ctx.beginPath();
-	ctx.rect(player.xPos-stickColW/2, player.yPos-stickColH/2, stickColW, stickColH);
-	ctx.stroke();
-
-	// Draw other player collisions
-	for (var i in localPList) {
-		if (i != socket.id) {
-			ctx.beginPath();
-			ctx.rect(localPList[i].xPos-stickColW/2, localPList[i].yPos-stickColH/2, stickColW, stickColH)
-			ctx.stroke();
-		}
-	}
-}
-
-// Check if passed position collides with any of the rectangles in the collisions[]
-function checkCollision(xPos, yPos) {
-	for (var i = 0; i < collisions.length; i++) {
-		if (((xPos+stickColW/2 >= collisions[i].x && xPos+stickColW/2 <= collisions[i].x + collisions[i].w) ||
-		   (xPos-stickColW/2 >= collisions[i].x && xPos-stickColW/2 <= collisions[i].x + collisions[i].w)) &&
-		   ((yPos+stickColH/2 >= collisions[i].y && yPos+stickColH/2 <= collisions[i].y + collisions[i].h) ||
-		   (yPos-stickColH/2 >= collisions[i].y && yPos-stickColH/2 <= collisions[i].y + collisions[i].h))) {
-			return true;
-		}
-	}
-	return false;
-}
-
-
-// Update other players
-function updateOtherPlayers() {
-
-	var speed = playerSpeed;
-
-	// Update the positions of other players (if they requiring moving that is)
-	for (i in localPList) {
-		if (i != socket.id) {
-			if (localPList[i].xDes != -1 && localPList[i].yDes != -1) {
-				var moveAngle = getMoveAngle(localPList[i].xPos, localPList[i].xDes, localPList[i].yPos, localPList[i].yDes);
-				localPList[i].xPos = calculateXPos(localPList[i].xPos, localPList[i].xDes, speed, moveAngle);
-				localPList[i].yPos = calculateYPos(localPList[i].yPos, localPList[i].yDes, speed, moveAngle);
-
-				// Player reached destination, no more moving
-				if (localPList[i].xPos == localPList[i].xDes && localPList[i].yPos == localPList[i].yDes) {
-					localPList[i].xDes = -1;
-					localPList[i].yDes = -1;
-				}
-			}
-		}
-	}
-
-}
-
-// Draw other players
-function drawOtherPlayers() {
-
-	// Draw the positions of other players
-	for (i in localPList) {
-		if (i != socket.id) {
-
-			// Draw stickman facing left or right
-			if (localPList[i].facing == "right") {
-				ctx.drawImage(images["stickman"], Math.round(localPList[i].xPos-images["stickman"].width/2), Math.round(localPList[i].yPos-images["stickman"].height/2));	
-			} else {
-				ctx.translate(Math.round(localPList[i].xPos+images["stickman"].width/2), Math.round(localPList[i].yPos-images["stickman"].height/2));
-				ctx.scale(-1, 1);
-				ctx.drawImage(images["stickman"], 0, 0);
-				ctx.setTransform(1, 0, 0, 1, 0, 0)
-			}
-
-			drawStickVar(localPList[i].name, localPList[i].xPos, localPList[i].yPos + 40);
-
-			// Debugging variables
-			if (debug) {
-				drawStickVar("xPos: " + Math.round(localPList[i].xPos), localPList[i].xPos, localPList[i].yPos + 70);
-				drawStickVar("yPos: " + Math.round(localPList[i].yPos), localPList[i].xPos, localPList[i].yPos + 90);
-				drawStickVar("facing: " + localPList[i].facing, localPList[i].xPos, localPList[i].yPos + 110);			
-			}
-		}
-	}
-}
-
-// Draw the player's chat on top of their own head
-function drawPlayerChat() {
-	if (displayChat != 0) {
-		ctx.fillText(chatMessage, Math.round(player.xPos-images["stickman"].width/2), Math.round(player.yPos-images["stickman"].height/2-30));
-	}
-}
-
-// Draw chat for other players
-function drawOtherChat() {
-	for (key in otherChat) {
-		if (otherChat[key].displayChat != 0) {
-			//debugMsg("key = " + key + " xPos = " + Math.round(localPList[key].xPos) + "yPos = " + Math.round(localPList[key].yPos));
-			ctx.fillText(otherChat[key].chat, Math.round(localPList[key].xPos-images["stickman"].width/2), Math.round(localPList[key].yPos-images["stickman"].height/2-30));
-		}
-	}
-}
-
-
-
-
-// Draws text starting from the origin of the given stickman position
-function drawStickVar(string, xPos, yPos) {
-	ctx.fillText(string, Math.round(xPos-images["stickman"].width/2), Math.round(yPos+images["stickman"].height/2));
-}
-

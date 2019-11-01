@@ -56,8 +56,11 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
+		self.drawName();
 		self.drawChatHead();
-		self.debugDraw();
+		if (debug) {
+			self.debugDraw();
+		}
 	}
 
 	// Draw stickman character
@@ -91,10 +94,13 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 		}
 	}
 
+	// Draw player's name
+	self.drawName = function() {
+		ctx.fillText(self.name, self.x-ctx.measureText(self.name).width/2, self.y+self.height/2+20);
+	}
 	// Draw debug variables
 	self.debugDraw = function() {
-		ctx.fillText("["+Math.round(self.x)+","+Math.round(self.y)+"]", self.x, self.y+70);
-		ctx.fillText(self.name, self.x,self.y+90);
+		ctx.fillText("["+Math.round(self.x)+","+Math.round(self.y)+"]", self.x, self.y+90);
 		ctx.fillText("state="+self.state,self.x,self.y+110);
 		ctx.fillText("$"+self.money,self.x,self.y+130);
 		ctx.fillText("intent="+self.intent,self.x,self.y+150);		

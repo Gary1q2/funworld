@@ -1,3 +1,6 @@
+// Setting up items
+var items = {};
+
 // Loading images for other stuff
 var images = {};
 images.head = new Image();
@@ -27,12 +30,25 @@ images.shopIcon.src = "static/shopIcon.png";
 images.collision = new Image();
 images.collision.src = "static/collision.png";
 
+images.lollypop = new Image();
+images.lollypop.src = "static/lollypop.png";
+images.helmet = new Image();
+images.helmet.src = "static/helmet.png";
+images.armour = new Image();
+images.armour.src = "static/armour.png";
+
 
 var gameTick;
 var debug;
 var localPList;   // Server state
-var pList = {};   // Array of all the players
+var items;
 var chatHistory;
+
+var pList = {};   // Array of all the players
+
+var shutdown = false;
+var inventOpen = false;
+var canMove = true;       // Determine if player will move or not (double clicking buttons)
 
 // Initialising the canvas variable
 var canvas = document.getElementById('canvas');
@@ -40,6 +56,14 @@ var ctx = canvas.getContext('2d');
 ctx.font = "20px Arial";
 ctx.lineWidth = 2;
 
+// Server shutting down, prevent new actions
+socket.on('shutdown', function() {
+	shutdown = true;
+
+	/*
+	shutdown = true (should negate anymore actions that the player makes)
+	*/
+});
 
 // Receive update on pList
 socket.on('updateState', function(data) {
@@ -55,11 +79,19 @@ socket.on('updateChat', function(data) {
 // Player clicked on screen
 document.getElementById('ui').addEventListener("click", function(event) {
 
-	// Send position to server
-	socket.emit('movement', {
-		clickX: event.offsetX,
-		clickY: event.offsetY
-	});
+	debugMsg("clicked scren");
+
+	// Only move if they didn't click a button
+	if (canMove) {
+
+		// Send position to server
+		socket.emit('movement', {
+			clickX: event.pageX-100,
+			clickY: event.pageY-20
+		});
+	} else {
+		canMove = true;
+	}
 	document.getElementById('chatbox').focus();
 });
 
@@ -165,5 +197,57 @@ function gameLoop() {
 function debugMsg(string) {
 	if (debug) {
 		console.log(string);
+	}
+}
+
+
+// Clicked the inventory button
+function switchInvent() {
+	debugMsg("switch invent");
+	canMove = false;
+	inventOpen = !inventOpen;
+
+	if (inventOpen) {
+
+		// Make them visible
+		document.getElementById("inventory").style.visibility = "visible";
+		document.getElementById("equipment").style.visibility = "visible";
+
+		document.getElementById("equipHead").style.visibility = "visible";
+		document.getElementById("equipBody").style.visibility = "visible";
+		document.getElementById("equipHand").style.visibility = "visible";
+		
+		// Draw the equipped items
+		if (pList[socket.id].head != -1) {
+			document.getElementById("equipHead").style.background = "url('"+images[items.dict[pList[socket.id].head].name].src+"') no-repeat center center";
+		}
+		if (pList[socket.id].body != -1) {
+			document.getElementById("equipBody").style.background = "url('"+images[items.dict[pList[socket.id].body].name].src+"') no-repeat center center";
+		}
+		if (pList[socket.id].hand != -1) {
+			document.getElementById("equipHand").style.background = "url('"+images[items.dict[pList[socket.id].hand].name].src+"') no-repeat center center";
+		}
+
+		// Draw inventory
+		var string = "";
+		for (var i = 0; i < pList[socket.id].invent.length; i++) {
+			string += "<button style=\"border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[items.dict[pList[socket.id].invent[i]].name].src+"')\">"+i+"</button>";
+
+		}
+//		var string = "<button style=\"border: 2px solid black;\">hello im gay</button";
+		document.getElementById("inventory").innerHTML = string;
+
+
+		// Show opened inventory button
+		document.getElementById("inventButton").style.background = "url('static/inventOpen.png') no-repeat center center";
+	} else {
+		document.getElementById("inventory").style.visibility = "hidden";
+		document.getElementById("equipment").style.visibility = "hidden";
+
+		document.getElementById("equipHead").style.visibility = "hidden";
+		document.getElementById("equipBody").style.visibility = "hidden";
+		document.getElementById("equipHand").style.visibility = "hidden";
+
+		document.getElementById("inventButton").style.background = "url('static/inventClose.png') no-repeat center center";
 	}
 }
