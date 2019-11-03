@@ -106,7 +106,11 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
-		self.drawEquip();
+
+		// Only draw equipment if player is not "dead"
+		if (self.state != "dead") {
+			self.drawEquip();
+		}
 		self.drawName();
 		self.drawChatHead();
 		if (debug) {
@@ -116,24 +120,32 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 
 	// Draw stickman character
 	self.draw = function() {
-		if (self.facing == "right") {
-			ctx.drawImage(self.img, self.x-self.width/2, self.y-self.height/2);	
-		} else {
-			ctx.translate(self.x+self.width/2, self.y-self.height/2)
-			ctx.scale(-1, 1);
-			ctx.drawImage(self.img, 0, 0);
-			ctx.setTransform(1, 0, 0, 1, 0, 0)
-		}
 
-		// Draw fishing rod when fishing
-		if (self.state == "fish") {
-			if (self.x <= fishArea.x) {
-				ctx.drawImage(images["fishingRod"], self.x-self.width/2+20, self.y-self.height/2-30);
+		// Dead after being punched
+		if (self.state == "dead") {
+			ctx.drawImage(images["dead"], self.x, self.y);
+
+		// Draw stickman normally
+		} else {
+			if (self.facing == "right") {
+				ctx.drawImage(self.img, self.x-self.width/2, self.y-self.height/2);	
 			} else {
-				ctx.translate(self.x+self.width/2-20, self.y-self.height/2-30);
+				ctx.translate(self.x+self.width/2, self.y-self.height/2)
 				ctx.scale(-1, 1);
-				ctx.drawImage(images["fishingRod"], 0, 0);
+				ctx.drawImage(self.img, 0, 0);
 				ctx.setTransform(1, 0, 0, 1, 0, 0)
+			}
+
+			// Draw fishing rod when fishing
+			if (self.state == "fish") {
+				if (self.x <= fishArea.x) {
+					ctx.drawImage(images["fishingRod"], self.x-self.width/2+20, self.y-self.height/2-30);
+				} else {
+					ctx.translate(self.x+self.width/2-20, self.y-self.height/2-30);
+					ctx.scale(-1, 1);
+					ctx.drawImage(images["fishingRod"], 0, 0);
+					ctx.setTransform(1, 0, 0, 1, 0, 0)
+				}
 			}
 		}
 	}
@@ -158,9 +170,9 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 		if (self.hand != -1) {
 			var image = images[items.dict[self.hand].name];
 			if (self.facing == "right") {
-				ctx.drawImage(image , self.x+image.width/2-20, self.y-30-image.height/2);
+				ctx.drawImage(image , self.x+image.width/2-20, self.y-image.height/2);
 			} else {
-				ctx.translate(self.x-image.width/2+20, self.y-30-image.height/2);
+				ctx.translate(self.x-image.width/2+20, self.y-image.height/2);
 				ctx.scale(-1, 1);
 				ctx.drawImage(image, 0, 0);
 				ctx.setTransform(1, 0, 0, 1, 0, 0);		

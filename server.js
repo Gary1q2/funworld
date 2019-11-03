@@ -28,7 +28,7 @@ entity = function(x, y, width, height) {
 	}
 
 	// Return if clicked (true or false)
-	self.checkClick = function(mouseX, mouseY) {
+	self.mouseOver = function(mouseX, mouseY) {
 		return (mouseX >= self.x - self.width/2 && mouseX <= self.x + self.width/2 && 
 			    mouseY >= self.y - self.height/2 && mouseY <= self.y + self.height/2);
 	}
@@ -61,11 +61,18 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 	self.fishingTime = gameTick * 2;       // 2 seconds to fish
 	self.fishingTimer = self.fishingTime ; // Timer for fishing
 	
+	self.punchTarget = -1;
+	self.deadTime = gameTick * 2;     // Dead for 2 seonds
+	self.deadTimer = self.deadTime;   // Timer for counting how long dead for
 
 	self.update = function() {
 		self.updateMovement();
 		self.updateChatHead();
 		self.updateFishing();
+
+		if (self.state == "dead") {
+			self.updateDying();
+		}
 	}
 
 
@@ -98,8 +105,8 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 				self.y = tempY;
 
 				// Back to normal state
-				if (self.state != -1) {
-					self.state = -1;
+				if (self.state != "none") {
+					self.state = "none";
 					debugMsg("BACK TO NORMAL STATE");
 				}
 
@@ -134,6 +141,16 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 		}
 	}
 
+	// Update and make player revive after being hit
+	self.updateDying = function() {
+		self.deadTimer--;
+		if (self.deadTimer == 0) {
+			self.state = "none";
+			self.deadTimer = self.deadTime;
+		}
+		
+	}
+
 	// Execute actions after player just stopped moving
 	self.justStopped = function() {
 		if (self.intent == "fish" && self.collideWith(fishArea)) {
@@ -142,6 +159,14 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 		} else if (self.intent == "shop" && self.collideWith(shop)) {
 			self.state = "shop";
 			debugMsg("Shop state on");
+		} else if (self.intent == "punch" && self.collideWith(pList[self.punchTarget])) {
+
+			self.intent = "none";
+			self.state = "punch";
+
+			pList[self.punchTarget].state = "dead";
+			self.state = "none";
+			debugMsg("I JUST PUNCHED A CUNT");
 		}
 	}
 
@@ -214,12 +239,6 @@ Item = function() {
 
 const port = 6969;
 const ip = "0.0.0.0";
-
-// Setting items WARNING could be different to client
-//var items = {};
-//setItem(0, "lollypop", "hand", 50, "static/lollypop.png");
-//setItem(1, "helmet", "head", 100, "static/helmet.png");
-//setItem(2, "armour", "body", 89, "static/armour.png");
 
 
 
@@ -341,7 +360,7 @@ io.on('connection', function(socket) {
 
 			// Setup new player's location information
 			var player = Player(socket.id, 750, 350, data, -1, -1, playerSpeed,
-			                     "right", 1, 2, 0, [0, 1, 2], -1, -1, 0);
+			                     "right", 1, 2, 0, [0, 1, 2, 3], "none", "none", 0);
 
 			// Add new player into the server information + save socket
 			socketList[socket.id] = socket;
@@ -377,24 +396,36 @@ io.on('connection', function(socket) {
 			// Check if location is valid <- do once you implement location
 			// CHANGE ..... its sending its current position
 			
-			// Setting intent
-			if (fishArea.checkClick(data.clickX, data.clickY)) {
-				pList[socket.id].intent = "fish";
-			} else if (shop.checkClick(data.clickX, data.clickY)) {
-				pList[socket.id].intent = "shop";
-			} else {	
-				pList[socket.id].intent = "none";
-			}
+			
+			// Only allow movement if you are not DEAD
+			if (pList[socket.id].state != "dead") {
+				var punchTarget = mouseOverPlayers(socket.id, data.clickX, data.clickY);
 
-			debugMsg("intent = " + pList[socket.id].intent);
+				// Setting intent
+				if (fishArea.mouseOver(data.clickX, data.clickY)) {
+					pList[socket.id].intent = "fish";
+				} else if (shop.mouseOver(data.clickX, data.clickY)) {
+					pList[socket.id].intent = "shop";
 
-			// Setting destination and facing
-			pList[socket.id].xDes = data.clickX;
-			pList[socket.id].yDes = data.clickY;
-			if (pList[socket.id].xDes - pList[socket.id].x >= 0) {
-				pList[socket.id].facing = "right";
-			} else {
-				pList[socket.id].facing = "left";
+				// Looking to punch someone with boxing glove
+				} else if (pList[socket.id].hand == 3 && (punchTarget != -1)) {
+					pList[socket.id].intent = "punch";
+					pList[socket.id].punchTarget = punchTarget;
+					debugMsg("i wanna punch " + pList[punchTarget].name);
+				} else {	
+					pList[socket.id].intent = "none";
+				}
+
+				debugMsg("intent = " + pList[socket.id].intent);
+
+				// Setting destination and facing
+				pList[socket.id].xDes = data.clickX;
+				pList[socket.id].yDes = data.clickY;
+				if (pList[socket.id].xDes - pList[socket.id].x >= 0) {
+					pList[socket.id].facing = "right";
+				} else {
+					pList[socket.id].facing = "left";
+				}
 			}
 		}
 	});
@@ -458,6 +489,7 @@ var items = Item();
 items.addItem(0, "lollypop", "hand");
 items.addItem(1, "helmet", "head");
 items.addItem(2, "armour", "body");
+items.addItem(3, "glove", "hand");
 
 // Collision array
 var collisions = [];
@@ -490,15 +522,6 @@ setInterval(function() {
 // Functions
 // ========================================
 
-
-// Initialise item property inside items{}
-/*function setItem(itemID, name, bodyPart, price, fileLoc) {
-	items[itemID] = {
-		name: name,
-		equip: bodyPart,
-		price: price
-	};
-}*/
 
 
 // Checks if two rectangles have a collision (true or false)
@@ -552,4 +575,16 @@ function debugMsg(string) {
 	if (debug) {
 		console.log(string);
 	}
+}
+
+// Checks if mouse is over any players or not   (returns socketID if true or -1 if false)
+function mouseOverPlayers(socketID, mouseX, mouseY) {
+	for (var i in pList) {
+		if (i != socketID) {
+			if (pList[i].mouseOver(mouseX, mouseY)) {
+				return i;
+			}
+		}
+	}
+	return -1;
 }

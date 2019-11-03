@@ -29,6 +29,8 @@ images.shopIcon = new Image();
 images.shopIcon.src = "static/shopIcon.png";
 images.collision = new Image();
 images.collision.src = "static/collision.png";
+images.dead = new Image();
+images.dead.src = "static/dead.png";
 
 images.lollypop = new Image();
 images.lollypop.src = "static/lollypop.png";
@@ -36,6 +38,8 @@ images.helmet = new Image();
 images.helmet.src = "static/helmet.png";
 images.armour = new Image();
 images.armour.src = "static/armour.png";
+images.glove = new Image();
+images.glove.src = "static/glove.png";
 
 
 var gameTick;
@@ -107,25 +111,28 @@ socket.on('money', function(data) {
 
 // Mouse over different objects
 document.getElementById('ui').addEventListener("mousemove", function(event) {
-	var mouse_x = event.pageX-100;
-	var mouse_y = event.pageY-20;
+	var mouseX = event.pageX-100;
+	var mouseY = event.pageY-20;
 
-	if (fishArea.mouseOver(mouse_x, mouse_y)) {
+	if (fishArea.mouseOver(mouseX, mouseY)) {
 		debugMsg("over fisharea");
 		document.getElementById('ui').style.cursor = "pointer";
-	} else if (shop.mouseOver(mouse_x, mouse_y)) {
+	} else if (shop.mouseOver(mouseX, mouseY)) {
 		document.getElementById('ui').style.cursor = "pointer";
+
+	// Mousing over players with boxing glove
+	} else if (pList[socket.id].hand == 3 && mouseOverPlayers(mouseX, mouseY)) {
+		document.getElementById('ui').style.cursor = "crosshair";
 	} else {
 		document.getElementById('ui').style.cursor = "alias";
 	}
-
 });
 
 // Player clicked on screen
 document.getElementById('ui').addEventListener("click", function(event) {
 
 	// Only move if they didn't click a button
-	if (canMove) {
+	if (canMove && pList[socket.id].state != "dead") {
 
 		// Send position to server
 		socket.emit('movement', {
@@ -298,4 +305,16 @@ function removeEquip(equip) {
 	debugMsg("removed = " + equip);
 	socket.emit('removeEquip', equip);
 	canMove = false;
+}
+
+// Checks if mouse is over any players or not
+function mouseOverPlayers(mouseX, mouseY) {
+	for (var i in pList) {
+		if (i != socket.id) {
+			if (pList[i].mouseOver(mouseX, mouseY)) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
