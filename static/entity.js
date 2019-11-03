@@ -31,6 +31,12 @@ entity = function(x, y, width, height, img) {
 		ctx.fillText("["+Math.round(self.x)+", "+Math.round(self.y)+"]", self.x, self.y+self.height/2 + 20);
 	}
 
+	// Return if mouse over (true or false)
+	self.mouseOver = function(mouseX, mouseY) {
+		return (mouseX >= self.x - self.width/2 && mouseX <= self.x + self.width/2 && 
+			    mouseY >= self.y - self.height/2 && mouseY <= self.y + self.height/2);
+	}
+
 	return self;
 }
 
@@ -228,7 +234,7 @@ Inventory = function() {
 				debugMsg("just updated inventory");
 				var string = "";
 				for (var i = 0; i < pList[socket.id].invent.length; i++) {
-					string += "<button onclick=\"equip("+pList[socket.id].invent[i]+")\" style=\"border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[items.dict[pList[socket.id].invent[i]].name].src+"')\"></button>";
+					string += "<button onclick=\"equip("+pList[socket.id].invent[i]+")\" style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[items.dict[pList[socket.id].invent[i]].name].src+"')\"></button>";
 				}
 
 				document.getElementById("inventory").innerHTML = string;

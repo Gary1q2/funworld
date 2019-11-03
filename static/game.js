@@ -44,6 +44,7 @@ var localPList;   // Server state
 var items;
 var chatHistory;
 
+
 var pList = {};   // Dictionary of all the players
 
 var displayHUD = [];  // Array of all HUD displays
@@ -96,9 +97,26 @@ socket.on('money', function(data) {
 		}
 	}
 	if (died) {
-		displayHUD[i] = movingText(player.x, player.y, 0, -2, "+$"+data, gameTick * 4);
+		displayHUD[i] = movingText(player.x, player.y, 0, -2, "+$"+data, gameTick * 2);
 	} else {
-		displayHUD.push(movingText(player.x, player.y, 0, -2, "+$"+data, gameTick * 4));
+		displayHUD.push(movingText(player.x, player.y, 0, -2, "+$"+data, gameTick * 2));
+	}
+
+});
+
+
+// Mouse over different objects
+document.getElementById('ui').addEventListener("mousemove", function(event) {
+	var mouse_x = event.pageX-100;
+	var mouse_y = event.pageY-20;
+
+	if (fishArea.mouseOver(mouse_x, mouse_y)) {
+		debugMsg("over fisharea");
+		document.getElementById('ui').style.cursor = "pointer";
+	} else if (shop.mouseOver(mouse_x, mouse_y)) {
+		document.getElementById('ui').style.cursor = "pointer";
+	} else {
+		document.getElementById('ui').style.cursor = "alias";
 	}
 
 });
