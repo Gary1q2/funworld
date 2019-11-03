@@ -39,8 +39,9 @@ entity = function(x, y, width, height) {
 
 /* Player entity
  */
-Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, invent, intent, state, money) {
+Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, hand, invent, intent, state, money) {
 	var self = entity(x, y, 52, 90);
+	self.socket = socket;
 	self.name = name;
 	self.xDes = xDes;
 	self.yDes = yDes;
@@ -54,12 +55,17 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	self.state = state;
 	self.money = money;
 
-	self.lastMsg = "";
-	self.lastMsgTime = 0;
+	self.lastMsg = "";    // Stores last message sent by player
+	self.lastMsgTime = 0; // Timer for last message sent
+
+	self.fishingTime = gameTick * 2;       // 2 seconds to fish
+	self.fishingTimer = self.fishingTime ; // Timer for fishing
+	
 
 	self.update = function() {
 		self.updateMovement();
 		self.updateChatHead();
+		self.updateFishing();
 	}
 
 
@@ -73,6 +79,8 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 			var oldY = self.y;
 			self.x = tempX;
 			self.y = tempY;
+
+			self.fishingTimer = self.fishingTime;
 
 			if (self.checkCollision()) {
 
@@ -110,6 +118,19 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	self.updateChatHead = function() {
 		if (self.lastMsgTime > 0) {
 			self.lastMsgTime--;
+		}
+	}
+
+	self.updateFishing = function() {
+		if (self.state == "fish") {
+			self.fishingTimer--;
+		}
+		if (self.fishingTimer == 0) {
+			self.money += 10;
+			self.fishingTimer = self.fishingTime;
+
+			// Tell player to create the money animation
+			socketList[self.socket].emit('money', 10);
 		}
 	}
 
@@ -285,7 +306,7 @@ stdin.addListener("data", function(d) {
 		if (args[0] == "give") {
 			if (args[1] in pList) {
 				if (args[2] >= 0 && args[2] <= 2) {
-					pList[args[1]].invent.push(args[2]);
+					pList[args[1]].invent.push(parseInt(args[2]));
 					console.log("Gave [" + args[1] + "] item [" + args[2] + "]");
 				} else {
 					console.log("Invalid itemID");
@@ -319,7 +340,7 @@ io.on('connection', function(socket) {
 		if (data) {
 
 			// Setup new player's location information
-			var player = Player(750, 350, data, -1, -1, playerSpeed,
+			var player = Player(socket.id, 750, 350, data, -1, -1, playerSpeed,
 			                     "right", 1, 2, 0, [0, 1, 2], -1, -1, 0);
 
 			// Add new player into the server information + save socket
@@ -390,12 +411,17 @@ io.on('connection', function(socket) {
 		}
 	});
 
-	/*
+
+
+	
 	// Player equip an item
-	socket.on('equipItem', function(itemID) {
+	socket.on('equip', function(itemID) {
+
+		// Check if player even has the item... hehe
 		if (pList[socket.id].invent.includes(itemID)) {
 			debugMsg("Player " + pList[socket.id].name + " equiped item " + itemID);
-			var slot = items[itemID].equip;
+
+			var slot = items.dict[itemID].equip;
 			if (slot == "head") {
 				pList[socket.id].head = itemID;
 			} else if (slot == "body") {
@@ -405,17 +431,19 @@ io.on('connection', function(socket) {
 			}
 		}
 	});
+
+
 	// Player unequip an item
-	socket.on('unequipItem', function(body) {
-		debugMsg("Player " + pList[socket.id].name + " unequiped item from " + body);
-		if (body == "head") {
+	socket.on('removeEquip', function(equip) {
+		debugMsg("Player " + pList[socket.id].name + " unequiped item from " + equip);
+		if (equip == "head") {
 			pList[socket.id].head = -1;
-		} else if (body == "body") {
+		} else if (equip == "body") {
 			pList[socket.id].body = -1;
-		} else if (body == "hand") {
+		} else if (equip == "hand") {
 			pList[socket.id].hand = -1;
 		}
-	});*/
+	});
 });
 
 

@@ -44,7 +44,9 @@ var localPList;   // Server state
 var items;
 var chatHistory;
 
-var pList = {};   // Array of all the players
+var pList = {};   // Dictionary of all the players
+
+var displayHUD = [];  // Array of all HUD displays
 
 var shutdown = false;
 var inventOpen = false;
@@ -55,6 +57,13 @@ var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 ctx.font = "20px Arial";
 ctx.lineWidth = 2;
+
+// Disconnect from the server GRACEFULLY
+function disconnect() {
+	debugMsg("Requesting to disconnect...");
+	socket.disconnect();
+}
+
 
 // Server shutting down, prevent new actions
 socket.on('shutdown', function() {
@@ -75,11 +84,27 @@ socket.on('updateChat', function(data) {
 	chatHistory = data;
 });
 
+socket.on('money', function(data) {
+	var player = pList[socket.id];
+
+	// Override moneys HUDs that already died otherwise push
+	var died = false;
+	for (var i = 0; i < displayHUD.length; i++) {
+		if (displayHUD[i].dieTime == 0) {
+			died = true;
+			break;
+		}
+	}
+	if (died) {
+		displayHUD[i] = movingText(player.x, player.y, 0, -2, "+$"+data, gameTick * 4);
+	} else {
+		displayHUD.push(movingText(player.x, player.y, 0, -2, "+$"+data, gameTick * 4));
+	}
+
+});
 
 // Player clicked on screen
 document.getElementById('ui').addEventListener("click", function(event) {
-
-	debugMsg("clicked scren");
 
 	// Only move if they didn't click a button
 	if (canMove) {
@@ -117,10 +142,7 @@ document.onkeypress = function(event) {
 // Testing entities
 var fishArea = entity(890, 550, images["fishArea"].width, images["fishArea"].height, images["fishArea"]);
 var shop = entity(465, 430, images["shop"].width, images["shop"].height, images["shop"]);
-
-
-
-
+var inventory = Inventory();
 
 
 // Game loop
@@ -129,17 +151,16 @@ function gameLoop() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.drawImage(images["bg"], 0, 0);
 
+
+
 	fishArea.update();
 	shop.update();
-
 
 	for (var i in localPList) {
 		// Add the player to the local state
 		if (!(i in pList)) {
 			var temp = localPList[i];
-			debugMsg(temp.x + "-" + temp.y);
-			var p = Player(temp.x, temp.y, temp.name, temp.xDes, temp.yDes, temp.speed, temp.facing, temp.head, temp.body, temp.hand, temp.invent, temp.intent, temp.state, temp.money);
-			pList[i] = p;
+			pList[i] = Player(temp.x, temp.y, temp.name, temp.xDes, temp.yDes, temp.speed, temp.facing, temp.head, temp.body, temp.hand, temp.invent, temp.intent, temp.state, temp.money);
 
 		// Update the existing player's state
 		} else {
@@ -155,7 +176,25 @@ function gameLoop() {
 			pList[i].head = localPList[i].head;
 			pList[i].body = localPList[i].body;
 			pList[i].hand = localPList[i].hand;
-			pList[i].invent = localPList[i].invent;
+
+			var same = true;
+			if (pList[i].invent.length != localPList[i].invent.length) {
+				same = false;
+			} else {
+				for (var j = 0; j < pList[i].invent.length; j++) {
+					if (pList[i].invent[j] != localPList[i].invent[j]) {
+						same = false;
+						break;
+					}
+				}
+			}
+
+			if (same == false) {
+				debugMsg("just updated YAYYYY");
+				pList[i].invent = localPList[i].invent;
+				inventory.justUpdated = true;
+			}
+
 			pList[i].intent = localPList[i].intent
 			pList[i].state = localPList[i].state;
 			pList[i].money = localPList[i].money;
@@ -187,6 +226,19 @@ function gameLoop() {
 	document.getElementById('chatHistory').innerHTML = string;
 
 
+
+
+
+	inventory.update();   // Update inventory
+
+
+
+	// Draw the display moeny stuff
+	for (var i = 0; i < displayHUD.length; i++) {
+		displayHUD[i].update();
+	}
+
+
 	// Update the player number HUD & name
 	document.getElementById('playerNum').innerHTML = "Players online: " + Object.keys(pList).length;
     document.getElementById('playerName').innerHTML = pList[socket.id].name;
@@ -203,51 +255,29 @@ function debugMsg(string) {
 
 // Clicked the inventory button
 function switchInvent() {
-	debugMsg("switch invent");
+
+	// Prevent player moving after clicking inventory
 	canMove = false;
-	inventOpen = !inventOpen;
 
-	if (inventOpen) {
-
-		// Make them visible
-		document.getElementById("inventory").style.visibility = "visible";
-		document.getElementById("equipment").style.visibility = "visible";
-
-		document.getElementById("equipHead").style.visibility = "visible";
-		document.getElementById("equipBody").style.visibility = "visible";
-		document.getElementById("equipHand").style.visibility = "visible";
-		
-		// Draw the equipped items
-		if (pList[socket.id].head != -1) {
-			document.getElementById("equipHead").style.background = "url('"+images[items.dict[pList[socket.id].head].name].src+"') no-repeat center center";
-		}
-		if (pList[socket.id].body != -1) {
-			document.getElementById("equipBody").style.background = "url('"+images[items.dict[pList[socket.id].body].name].src+"') no-repeat center center";
-		}
-		if (pList[socket.id].hand != -1) {
-			document.getElementById("equipHand").style.background = "url('"+images[items.dict[pList[socket.id].hand].name].src+"') no-repeat center center";
-		}
-
-		// Draw inventory
-		var string = "";
-		for (var i = 0; i < pList[socket.id].invent.length; i++) {
-			string += "<button style=\"border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[items.dict[pList[socket.id].invent[i]].name].src+"')\">"+i+"</button>";
-
-		}
-//		var string = "<button style=\"border: 2px solid black;\">hello im gay</button";
-		document.getElementById("inventory").innerHTML = string;
-
-
-		// Show opened inventory button
-		document.getElementById("inventButton").style.background = "url('static/inventOpen.png') no-repeat center center";
+	// Change inventory display
+	if (inventory.display) {
+		inventory.setDisplay(false);
 	} else {
-		document.getElementById("inventory").style.visibility = "hidden";
-		document.getElementById("equipment").style.visibility = "hidden";
-
-		document.getElementById("equipHead").style.visibility = "hidden";
-		document.getElementById("equipBody").style.visibility = "hidden";
-		document.getElementById("equipHand").style.visibility = "hidden";
-
-		document.getElementById("inventButton").style.background = "url('static/inventClose.png') no-repeat center center";
+		inventory.setDisplay(true);
 	}
+}
+
+// Clicked to add equip
+function equip(itemID) {
+	debugMsg("equiped = " + itemID);
+	socket.emit('equip', itemID);
+	canMove = false;
+}
+
+
+// Clicked to remove equip
+function removeEquip(equip) {
+	debugMsg("removed = " + equip);
+	socket.emit('removeEquip', equip);
+	canMove = false;
 }
