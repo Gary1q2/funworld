@@ -40,6 +40,40 @@ entity = function(x, y, width, height, img) {
 	return self;
 }
 
+animation = function(x, y, width, height, img, frameRow, frameCol) {
+	var self = entity(x, y, width, height, img);
+	self.frameRow = frameRow;
+	self.frameCol = frameCol;
+	self.frameCounter = 0;
+	self.delay = 4;
+
+	var super_update = self.update;
+	self.update = function() {
+		super_update();
+		self.draw();
+	}
+
+	self.draw = function() {
+
+		ctx.drawImage(self.img, (self.frameCounter%self.frameCol)*(self.width/self.frameCol), 
+					 (self.frameCounter%self.frameRow)*(self.height/self.frameRow), 
+					  self.width/self.frameCol, self.height/self.frameRow, self.x, self.y,
+					  self.width/self.frameCol, self.height/self.frameRow);
+		if (self.delay > 0) {
+			self.delay--;
+		} else {
+			self.delay = 4;
+			self.frameCounter++;
+			if (self.frameCounter == 5) {
+				self.frameCounter = 0;
+			}
+		}
+
+
+	}
+	return self;
+}
+
 text = function(x, y, msg, dieTime) {
 	var self = {
 		x: x,
@@ -113,9 +147,11 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 		}
 		self.drawName();
 		self.drawChatHead();
+		self.displayShop();
+
 		if (debug) {
 			self.debugDraw();
-		}
+		}		
 	}
 
 	// Draw stickman character
@@ -150,25 +186,49 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 		}
 	}
 
+	// Display shop or not
+	self.displayShop = function() {
+
+		// Display shop HUD if player is shopping
+		if (self.state == "shop" && displayShop == false) {
+			displayShop = true;
+			document.getElementById('shop').style.visibility = "visible";
+
+			var string = "";
+			for (var i = 0; i < shop.inventory.length; i++) {
+				string += "<button style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[(items.getItem(i)).name].src+
+				"');\" onclick=\"buyItem("+i+")\"></button>";
+			}
+			document.getElementById('shop').innerHTML = string;
+		}
+
+		// Turn off shop GUI 
+		if (self.state != "shop" && displayShop == true) {
+			displayShop = false;
+			document.getElementById('shop').style.visibility = "hidden";
+		}
+	}
+
+
 	// Draw items equipped by player
 	self.drawEquip = function() {
 		if (self.head != -1) {
-			var image = images[items.dict[self.head].name];
+			var image = images[(items.getItem(self.head)).name];
 			if (self.facing == "left") {
 				ctx.drawImage(image, self.x-image.width/2, self.y-27-image.height/2);
 			} else {
-				ctx.translate(self.x+image.width/2, self.y-27	-image.height/2);
+				ctx.translate(self.x+image.width/2, self.y-27-image.height/2);
 				ctx.scale(-1, 1);
 				ctx.drawImage(image, 0, 0);
 				ctx.setTransform(1, 0, 0, 1, 0, 0);
 			}
 		}
 		if (self.body != -1) {
-			var image = images[items.dict[self.body].name];
-			ctx.drawImage(images[items.dict[self.body].name], self.x-image.width/2, self.y-image.height/2+4);
+			var image = images[(items.getItem(self.body)).name];
+			ctx.drawImage(image, self.x-image.width/2, self.y-image.height/2+4);
 		}
-		if (self.hand != -1) {
-			var image = images[items.dict[self.hand].name];
+		if (self.hand != -1 && self.state != "fish") {
+			var image = images[(items.getItem(self.hand)).name];
 			if (self.facing == "right") {
 				ctx.drawImage(image , self.x+image.width/2-20, self.y-image.height/2);
 			} else {
@@ -224,17 +284,17 @@ Inventory = function() {
 
 			// Display the equipped items
 			if (pList[socket.id].head != -1) {
-				document.getElementById("equipHead").style.background = "url('"+images[items.dict[pList[socket.id].head].name].src+"') no-repeat center center";
+				document.getElementById("equipHead").style.background = "url('"+images[(items.getItem(pList[socket.id].head)).name].src+"') no-repeat center center";
 			} else {
 				document.getElementById("equipHead").style.background = 'none';
 			}
 			if (pList[socket.id].body != -1) {
-				document.getElementById("equipBody").style.background = "url('"+images[items.dict[pList[socket.id].body].name].src+"') no-repeat center center";
+				document.getElementById("equipBody").style.background = "url('"+images[(items.getItem(pList[socket.id].body)).name].src+"') no-repeat center center";
 			} else {
 				document.getElementById("equipBody").style.background = 'none';
 			}
 			if (pList[socket.id].hand != -1) {
-				document.getElementById("equipHand").style.background = "url('"+images[items.dict[pList[socket.id].hand].name].src+"') no-repeat center center";
+				document.getElementById("equipHand").style.background = "url('"+images[(items.getItem(pList[socket.id].hand)).name].src+"') no-repeat center center";
 			} else {
 				document.getElementById("equipHand").style.background = 'none';
 			}
@@ -246,7 +306,7 @@ Inventory = function() {
 				debugMsg("just updated inventory");
 				var string = "";
 				for (var i = 0; i < pList[socket.id].invent.length; i++) {
-					string += "<button onclick=\"equip("+pList[socket.id].invent[i]+")\" style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[items.dict[pList[socket.id].invent[i]].name].src+"')\"></button>";
+					string += "<button onclick=\"equip("+pList[socket.id].invent[i]+")\" style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[(items.getItem(pList[socket.id].invent[i])).name].src+"')\"></button>";
 				}
 
 				document.getElementById("inventory").innerHTML = string;
@@ -272,6 +332,70 @@ Inventory = function() {
 	// Set the inventory to display or not
 	self.setDisplay = function(bool) {
 		self.display = bool;
+	}
+
+	return self;
+}
+
+
+
+/* Shop is entity with an inventory + price
+ */
+Shop = function(x, y, width, height, img) {
+	var self = entity(x, y, width, height, img);
+	self.inventory = [];
+
+	var super_update = self.update;
+	self.update = function() {
+		super_update();
+	}	
+
+	// Add item to inventory
+	self.addItem = function(itemID, price) {
+		self.inventory.push({
+			itemID: itemID,
+			name: (items.getItem(itemID)).name,
+			price: price
+		});
+	}
+
+	// Return item price
+	self.getPrice = function(itemID) {
+		for (var i = 0; i < self.inventory.length; i++) {
+			if (self.inventory[i].itemID == itemID) {
+				return self.inventory[i].price;
+			}
+		}
+		return -1;
+	}
+
+	return self;
+}
+
+/* Item properties
+ */
+Items = function() {
+	var self = {
+		array: []
+	};
+
+	self.addItem = function(itemID, name, equip) {
+		self.array.push({
+			itemID: itemID,
+			name: name,
+			equip: equip
+		});
+	}
+
+	// Return item when given name, return -1 if not found
+	self.getItem = function(itemID) {
+
+		for (var i = 0; i < self.array.length; i++) {
+			if (self.array[i].itemID == itemID) {
+				return self.array[i];
+			}
+		}
+		return -1;
 	}
 
 	return self;

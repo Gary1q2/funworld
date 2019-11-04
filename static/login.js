@@ -30,10 +30,24 @@ socket.on('nullName', function() {
 
 // Let player know we have been initialised properly
 socket.on('initDone', function(data) { 
-
     gameTick = data.tick;
     debug = data.debug;
-    items = data.items;
+   
+
+    debugMsg("initing");
+
+    // Extracting items 
+    items = Items();
+    for (var i = 0; i < data.items.array.length; i++) {
+        var obj = data.items.array[i];
+        items.addItem(obj.itemID, obj.name, obj.equip);
+    }
+
+    // Extract shop from here trying
+    shop = Shop(data.shop.x, data.shop.y, data.shop.width, data.shop.height, images["shop"]);
+    for (var i = 0; i < data.shop.inventory.length; i++) {
+        shop.addItem(data.shop.inventory[i].itemID, data.shop.inventory[i].price);
+    }
 
     // Remove login form
     document.getElementById('login').style.display = "none";

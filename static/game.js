@@ -1,6 +1,3 @@
-// Setting up items
-var items = {};
-
 // Loading images for other stuff
 var images = {};
 images.head = new Image();
@@ -40,6 +37,8 @@ images.armour = new Image();
 images.armour.src = "static/armour.png";
 images.glove = new Image();
 images.glove.src = "static/glove.png";
+images.gloveAnim = new Image();
+images.gloveAnim.src = "static/gloveAnim.png";
 
 
 var gameTick;
@@ -56,6 +55,12 @@ var displayHUD = [];  // Array of all HUD displays
 var shutdown = false;
 var inventOpen = false;
 var canMove = true;       // Determine if player will move or not (double clicking buttons)
+
+var displayShop = false;
+
+
+var shop;
+
 
 // Initialising the canvas variable
 var canvas = document.getElementById('canvas');
@@ -81,7 +86,7 @@ socket.on('shutdown', function() {
 
 // Receive update on pList
 socket.on('updateState', function(data) {
-	localPList = data;
+	localPList = data
 });
 
 // Receive update on chat history
@@ -111,20 +116,25 @@ socket.on('money', function(data) {
 
 // Mouse over different objects
 document.getElementById('ui').addEventListener("mousemove", function(event) {
-	var mouseX = event.pageX-100;
-	var mouseY = event.pageY-20;
 
-	if (fishArea.mouseOver(mouseX, mouseY)) {
-		debugMsg("over fisharea");
-		document.getElementById('ui').style.cursor = "pointer";
-	} else if (shop.mouseOver(mouseX, mouseY)) {
-		document.getElementById('ui').style.cursor = "pointer";
+	// Only run this after playerList initialised
+	if (pList.length > 0) {
 
-	// Mousing over players with boxing glove
-	} else if (pList[socket.id].hand == 3 && mouseOverPlayers(mouseX, mouseY)) {
-		document.getElementById('ui').style.cursor = "crosshair";
-	} else {
-		document.getElementById('ui').style.cursor = "alias";
+		var mouseX = event.pageX-100;
+		var mouseY = event.pageY-20;
+
+		if (fishArea.mouseOver(mouseX, mouseY)) {
+			debugMsg("over fisharea");
+			document.getElementById('ui').style.cursor = "pointer";
+		} else if (shop.mouseOver(mouseX, mouseY)) {
+			document.getElementById('ui').style.cursor = "pointer";
+
+		// Mousing over players with boxing glove
+		} else if (pList[socket.id].hand == 3 && mouseOverPlayers(mouseX, mouseY)) {
+			document.getElementById('ui').style.cursor = "crosshair";
+		} else {
+			document.getElementById('ui').style.cursor = "alias";
+		}
 	}
 });
 
@@ -166,9 +176,10 @@ document.onkeypress = function(event) {
 
 // Testing entities
 var fishArea = entity(890, 550, images["fishArea"].width, images["fishArea"].height, images["fishArea"]);
-var shop = entity(465, 430, images["shop"].width, images["shop"].height, images["shop"]);
 var inventory = Inventory();
 
+
+var testAnim = animation(300, 200, images["gloveAnim"].width, images["gloveAnim"].height, images["gloveAnim"], 1, 5);
 
 // Game loop
 function gameLoop() {
@@ -176,11 +187,15 @@ function gameLoop() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.drawImage(images["bg"], 0, 0);
 
+	//testAnim.update();
 
 
 	fishArea.update();
 	shop.update();
 
+
+
+	// Extract player list from server
 	for (var i in localPList) {
 		// Add the player to the local state
 		if (!(i in pList)) {
@@ -227,7 +242,6 @@ function gameLoop() {
 			pList[i].lastMsgTime = localPList[i].lastMsgTime;
 		}
 	}
-
 	// Remove a player thats gone
 	for (var i in pList) {
 		if (!(i in localPList)) {
@@ -317,4 +331,10 @@ function mouseOverPlayers(mouseX, mouseY) {
 		}
 	}
 	return false;
+}
+
+// Asks server to buy item from shop
+function buyItem(name) {
+	socket.emit('buyItem', name);
+	canMove = false;
 }

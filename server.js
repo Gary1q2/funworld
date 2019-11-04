@@ -209,31 +209,66 @@ Chat = function(len) {
 
 /* Item properties
  */
-Item = function() {
+Items = function() {
 	var self = {
-		dict: {}
+		array: []
 	};
 
 	self.addItem = function(itemID, name, equip) {
-		self.dict[itemID] = {
+		self.array.push({
+			itemID: itemID,
 			name: name,
 			equip: equip
-		};
+		});
 	}
 
-	self.getName = function(itemID) {
-		return dict[itemID].name;
-	}
+	// Return item when given name, return -1 if not found
+	self.getItem = function(itemID) {
 
-	self.getEquip = function(itemID) {
-		return dict[itemID].equip;
+		for (var i = 0; i < self.array.length; i++) {
+			if (self.array[i].itemID == itemID) {
+				return self.array[i];
+			}
+		}
+		return -1;
 	}
 
 	return self;
 }
 
 
+/* Shop is entity with an inventory + price
+ */
+Shop = function(x, y, width, height) {
+	var self = entity(x, y, width, height);
+	self.inventory = [];
 
+	var super_update = self.update;
+	self.update = function() {
+		super_update();
+	}	
+
+	// Add item to inventory
+	self.addItem = function(itemID, price) {
+		self.inventory.push({
+			itemID: itemID,
+			name: (items.getItem(itemID)).name,
+			price: price
+		});
+	}
+
+	// Return item price
+	self.getPrice = function(itemID) {
+		for (var i = 0; i < self.inventory.length; i++) {
+			if (self.inventory[i].itemID == itemID) {
+				return self.inventory[i].price;
+			}
+		}
+		return -1;
+	}
+
+	return self;
+}
 
 
 
@@ -366,9 +401,16 @@ io.on('connection', function(socket) {
 			socketList[socket.id] = socket;
 			pList[socket.id] = player;
 
+			socket.emit('updateState', pList)
+
 			// Give player the server state + specific values
-			socket.emit('initDone', {tick: gameTick, debug: debug, items: items});
-			socket.emit('updateState', pList);	
+			socket.emit('initDone', {
+				tick: gameTick, 
+				debug: debug, 
+				items: items, 
+				shop: shop
+			});
+			
 
 			console.log("[" + data + "] has joined ------------- total players online = " + Object.keys(pList).length);
 
@@ -396,7 +438,7 @@ io.on('connection', function(socket) {
 			// Check if location is valid <- do once you implement location
 			// CHANGE ..... its sending its current position
 			
-			
+
 			// Only allow movement if you are not DEAD
 			if (pList[socket.id].state != "dead") {
 				var punchTarget = mouseOverPlayers(socket.id, data.clickX, data.clickY);
@@ -452,7 +494,7 @@ io.on('connection', function(socket) {
 		if (pList[socket.id].invent.includes(itemID)) {
 			debugMsg("Player " + pList[socket.id].name + " equiped item " + itemID);
 
-			var slot = items.dict[itemID].equip;
+			var slot = items.getItem(itemID).equip;
 			if (slot == "head") {
 				pList[socket.id].head = itemID;
 			} else if (slot == "body") {
@@ -475,21 +517,39 @@ io.on('connection', function(socket) {
 			pList[socket.id].hand = -1;
 		}
 	});
+
+	// Player trying to buy item from shop
+	socket.on('buyItem', function(itemID) {
+		if (pList[socket.id].state == "shop" && pList[socket.id].money >= shop.getPrice(itemID)) {
+			debugMsg("money = " + pList[socket.id].money + "   ---> get Price = " + shop.getPrice(itemID) + " item id ==" + itemID);
+			pList[socket.id].invent.push(itemID);
+			pList[socket.id].money -= shop.getPrice(itemID);
+			debugMsg("bought item = " + itemID);
+		} else {
+			debugMsg("can't buy item " +itemID + " not enough moeny");
+		}
+	});
 });
 
 
 
 // Testing entities
 var fishArea = entity(890, 550, 130, 109);
-var shop = entity(465, 430, 145, 143);
 var chatHistory = Chat(10);
 
 // Items array
-var items = Item();
+var items = Items();
 items.addItem(0, "lollypop", "hand");
 items.addItem(1, "helmet", "head");
 items.addItem(2, "armour", "body");
 items.addItem(3, "glove", "hand");
+
+// Shop
+var shop = Shop(465, 430, 145, 143);
+shop.addItem(0, 50);
+shop.addItem(1, 100);
+shop.addItem(2, 69);
+shop.addItem(3, 999);
 
 // Collision array
 var collisions = [];
