@@ -147,7 +147,6 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 		}
 		self.drawName();
 		self.drawChatHead();
-		self.displayShop();
 
 		if (debug) {
 			self.debugDraw();
@@ -185,30 +184,6 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 			}
 		}
 	}
-
-	// Display shop or not
-	self.displayShop = function() {
-
-		// Display shop HUD if player is shopping
-		if (self.state == "shop" && displayShop == false) {
-			displayShop = true;
-			document.getElementById('shop').style.visibility = "visible";
-
-			var string = "";
-			for (var i = 0; i < shop.inventory.length; i++) {
-				string += "<button style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[(items.getItem(i)).name].src+
-				"');\" onclick=\"buyItem("+i+")\"></button>";
-			}
-			document.getElementById('shop').innerHTML = string;
-		}
-
-		// Turn off shop GUI 
-		if (self.state != "shop" && displayShop == true) {
-			displayShop = false;
-			document.getElementById('shop').style.visibility = "hidden";
-		}
-	}
-
 
 	// Draw items equipped by player
 	self.drawEquip = function() {
@@ -344,10 +319,15 @@ Inventory = function() {
 Shop = function(x, y, width, height, img) {
 	var self = entity(x, y, width, height, img);
 	self.inventory = [];
+	self.displayShop = false;
+
+	self.thankTimer = 0;
 
 	var super_update = self.update;
 	self.update = function() {
 		super_update();
+		self.draw();
+		self.drawHUD();
 	}	
 
 	// Add item to inventory
@@ -367,6 +347,37 @@ Shop = function(x, y, width, height, img) {
 			}
 		}
 		return -1;
+	}
+
+	self.draw = function() {
+		if (self.thankTimer > 0) {
+			ctx.drawImage(images["shopThanks"], self.x-self.width/2, self.y-self.height/2);
+		} else {
+			ctx.drawImage(images["shop"], self.x-self.width/2, self.y-self.height/2);
+		}
+	}
+
+	// Draw the HUD if player is shopping
+	self.drawHUD = function() {
+
+		// Display shop HUD if player is shopping
+		if (pList[socket.id].state == "shop" && self.displayShop == false) {
+			self.displayShop = true;
+			document.getElementById('shop').style.visibility = "visible";
+
+			var string = "";
+			for (var i = 0; i < self.inventory.length; i++) {
+				string += "<button style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[(items.getItem(i)).name].src+
+				"');\" onclick=\"buyItem("+i+")\">"+self.getPrice(i)+"</button>";
+			}
+			document.getElementById('shop').innerHTML = string;
+		}
+
+		// Turn off shop GUI 
+		if (pList[socket.id].state != "shop" && self.displayShop == true) {
+			self.displayShop = false;
+			document.getElementById('shop').style.visibility = "hidden";
+		}
 	}
 
 	return self;

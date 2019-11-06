@@ -28,6 +28,8 @@ images.collision = new Image();
 images.collision.src = "static/collision.png";
 images.dead = new Image();
 images.dead.src = "static/dead.png";
+images.shopThanks = new Image();
+images.shopThanks.src = "static/shopThanks.png";
 
 images.lollypop = new Image();
 images.lollypop.src = "static/lollypop.png";
@@ -55,8 +57,6 @@ var displayHUD = [];  // Array of all HUD displays
 var shutdown = false;
 var inventOpen = false;
 var canMove = true;       // Determine if player will move or not (double clicking buttons)
-
-var displayShop = false;
 
 
 var shop;
@@ -92,6 +92,10 @@ socket.on('updateState', function(data) {
 // Receive update on chat history
 socket.on('updateChat', function(data) {
 	chatHistory = data;
+});
+
+socket.on('shopThank', function(data) {
+	shop.thankTimer = data;
 });
 
 socket.on('money', function(data) {
@@ -183,6 +187,7 @@ var testAnim = animation(300, 200, images["gloveAnim"].width, images["gloveAnim"
 
 // Game loop
 function gameLoop() {
+
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.drawImage(images["bg"], 0, 0);

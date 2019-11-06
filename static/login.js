@@ -56,6 +56,13 @@ socket.on('initDone', function(data) {
     document.getElementById('playerName').style.display = "block";
     document.getElementById('chatbox').style.display = "block";
     
+
+    // Extract the PList
+    for (var i in localPList) {
+        var temp = localPList[i];
+        pList[i] = Player(temp.x, temp.y, temp.name, temp.xDes, temp.yDes, temp.speed, temp.facing, temp.head, temp.body, temp.hand, temp.invent, temp.intent, temp.state, temp.money);
+    }
+
     // Start the main loop
     setInterval(gameLoop, 1000/gameTick);
 });

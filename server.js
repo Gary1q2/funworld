@@ -243,9 +243,11 @@ Shop = function(x, y, width, height) {
 	var self = entity(x, y, width, height);
 	self.inventory = [];
 
-	var super_update = self.update;
+	self.thankTime = gameTick * 1;
+	self.thankTimer = 0;
+
 	self.update = function() {
-		super_update();
+		if (self.thankTimer > 0) { self.thankTimer--; }
 	}	
 
 	// Add item to inventory
@@ -265,6 +267,10 @@ Shop = function(x, y, width, height) {
 			}
 		}
 		return -1;
+	}
+
+	self.thank = function() {
+		self.thankTimer = self.thankTime;
 	}
 
 	return self;
@@ -359,7 +365,7 @@ stdin.addListener("data", function(d) {
 		// give [userID] [itemID]
 		if (args[0] == "give") {
 			if (args[1] in pList) {
-				if (args[2] >= 0 && args[2] <= 2) {
+				if (args[2] >= 0 && args[2] < items.array.length) {
 					pList[args[1]].invent.push(parseInt(args[2]));
 					console.log("Gave [" + args[1] + "] item [" + args[2] + "]");
 				} else {
@@ -395,7 +401,7 @@ io.on('connection', function(socket) {
 
 			// Setup new player's location information
 			var player = Player(socket.id, 750, 350, data, -1, -1, playerSpeed,
-			                     "right", 1, 2, 0, [0, 1, 2, 3], "none", "none", 0);
+			                     "right", -1, -1, -1, [], "none", "none", 9999);
 
 			// Add new player into the server information + save socket
 			socketList[socket.id] = socket;
@@ -524,9 +530,10 @@ io.on('connection', function(socket) {
 			debugMsg("money = " + pList[socket.id].money + "   ---> get Price = " + shop.getPrice(itemID) + " item id ==" + itemID);
 			pList[socket.id].invent.push(itemID);
 			pList[socket.id].money -= shop.getPrice(itemID);
-			debugMsg("bought item = " + itemID);
+			debugMsg(pList[socket.id].name + " bought a" + (items.getItem(itemID)).name);
+			shop.thank();
 		} else {
-			debugMsg("can't buy item " +itemID + " not enough moeny");
+			debugMsg(pList[socket.id].name + "can't buy "+ (items.getItem(itemID)).name+ "= not enough moeny");
 		}
 	});
 });
@@ -566,10 +573,14 @@ setInterval(function() {
 		pList[i].update();
 	}
 
+	// Update the shop
+	shop.update();
+
 	// Broadcast everyone's new states + chat
 	for (var i in socketList) {
 		socketList[i].emit('updateState', pList);
 		socketList[i].emit('updateChat', chatHistory.array);
+		socketList[i].emit('shopThank', shop.thankTimer);
 	}
 
 
