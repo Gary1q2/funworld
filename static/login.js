@@ -55,7 +55,8 @@ socket.on('initDone', function(data) {
     document.getElementById('playerNum').style.display = "block";
     document.getElementById('playerName').style.display = "block";
     document.getElementById('chatbox').style.display = "block";
-    
+    document.getElementById('inventButton').style.visibility = "visible";
+    document.getElementById('chatHistory').style.visibility = "visible";
 
     // Extract the PList
     for (var i in localPList) {
