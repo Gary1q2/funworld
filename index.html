@@ -9,8 +9,6 @@
 
         <canvas id="canvas" width="1500" height="800"></canvas>
         <div id="ui">
-            <div id="chatHistory"></div>
-            <button id="inventButton" onclick="switchInvent()" style="cursor: pointer;"></button>
             <div id="inventory"></div>
 
             <div id="equipment">
@@ -24,11 +22,17 @@
         </div>
 
         <div id="hud">
-            <div id="playerNum"></div>
+            <!--<div id="playerNum"></div>-->
             <div id="playerName"></div>
-            
             <input id="chatbox" type="text"> 
+            <button id="inventButton" onclick="switchInvent()"></button>
+            <img id="chatBubble" src="static/chatBubble.png" style="left:500px;position:absolute;visibility:hidden">
+            
+            <div id="money" style="left:100px;top:30px;position:absolute;"></div>
+            <img id="moneyPic" src="static/money.png" style="left:20px;position:absolute;visibility:hidden">
         </div>
+
+        <div id="chatHistory"></div>
 
 
         <div id="login">
@@ -54,6 +58,7 @@
     left: 40%;
     top: 200px;
     border: 4px solid black;
+    background-color: #D3AE60;
     visibility: hidden;
 }
 
@@ -80,6 +85,7 @@
     height: 100px;
     width: 100px;
     border: 2px solid black;
+    background-color: #D3AE60;
     visibility: hidden;
 }
 
@@ -90,16 +96,16 @@
     left: 100px;
     top: 200px;
     border: 4px solid black;
+    background: #D3AE60;
     visibility: hidden;
 }
 
 #equipment {
     position: absolute;
-    height: 300px;
+    height: 200px;
     width: 300px;
-    right: 400px;
-    top: 200px;
-    border: 4px solid black;
+    left: 950px;
+    bottom: 0px;
     visibility: hidden;
 }
 
@@ -108,8 +114,7 @@
     position: absolute;
     height: 100px;
     width: 100px;
-    left: 40%;
-    bottom: 100px;
+    left: 1150px;
     background: url('static/inventClose.png') no-repeat center center;
     cursor: pointer;
     visibility: hidden;
@@ -117,13 +122,14 @@
 
 #chatHistory {
     position: absolute;
-    height: 350px;
+    height: 900px;
     width: 400px;
-    right: 30px;
-    top: 40%;
-    border: 4px solid black;
+    left: 1600px;
+    top: 20px;
+    border: 2px solid black;
     font-size: 30px;
     visibility: hidden;
+    background-color: #D3AE60;
 }
 
 body, html {
@@ -165,9 +171,11 @@ body, html {
     width: 1500px;
     height: 100px;  
     left: 100px;
-    bottom: -10px;
+    top: 820px;
     font-size: 40px;
     font-family: Arial;
+    background-color: #D3AE60;
+    border: 2px solid black;
 }
 
 #canvas {
@@ -208,7 +216,7 @@ body, html {
 #chatbox {
     display: none;
     position: absolute;
-    left: 50%;
+    left: 590px;
     bottom: 20px;
     border: 4px solid black;
     font-size: 40px;

@@ -52,11 +52,13 @@ socket.on('initDone', function(data) {
     // Remove login form
     document.getElementById('login').style.display = "none";
     document.getElementById('hud').style.display = "block";
-    document.getElementById('playerNum').style.display = "block";
+    //document.getElementById('playerNum').style.display = "block";
     document.getElementById('playerName').style.display = "block";
     document.getElementById('chatbox').style.display = "block";
     document.getElementById('inventButton').style.visibility = "visible";
     document.getElementById('chatHistory').style.visibility = "visible";
+    document.getElementById('chatBubble').style.visibility = "visible";
+    document.getElementById('moneyPic').style.visibility = "visible";
 
     // Extract the PList
     for (var i in localPList) {

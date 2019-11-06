@@ -30,6 +30,8 @@ images.dead = new Image();
 images.dead.src = "static/dead.png";
 images.shopThanks = new Image();
 images.shopThanks.src = "static/shopThanks.png";
+images.chatBubble = new Image();
+images.chatBubble.src = "static/chatBubble.png";
 
 images.lollypop = new Image();
 images.lollypop.src = "static/lollypop.png";
@@ -284,8 +286,9 @@ function gameLoop() {
 
 
 	// Update the player number HUD & name
-	document.getElementById('playerNum').innerHTML = "Players online: " + Object.keys(pList).length;
+	//document.getElementById('playerNum').innerHTML = "Players online: " + Object.keys(pList).length;
     document.getElementById('playerName').innerHTML = pList[socket.id].name;
+    document.getElementById('money').innerHTML = pList[socket.id].money;
 }
 
 
@@ -299,10 +302,6 @@ function debugMsg(string) {
 
 // Clicked the inventory button
 function switchInvent() {
-
-	// Prevent player moving after clicking inventory
-	canMove = false;
-
 	// Change inventory display
 	if (inventory.display) {
 		inventory.setDisplay(false);

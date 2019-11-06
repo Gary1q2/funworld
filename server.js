@@ -531,7 +531,10 @@ io.on('connection', function(socket) {
 			pList[socket.id].invent.push(itemID);
 			pList[socket.id].money -= shop.getPrice(itemID);
 			debugMsg(pList[socket.id].name + " bought a" + (items.getItem(itemID)).name);
-			shop.thank();
+			shop.thank();  // thank the shop keeper
+
+			// Tell player to create the money animation
+			socketList[socket.id].emit('money', "-"+shop.getPrice(itemID));
 		} else {
 			debugMsg(pList[socket.id].name + "can't buy "+ (items.getItem(itemID)).name+ "= not enough moeny");
 		}

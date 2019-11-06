@@ -259,19 +259,19 @@ Inventory = function() {
 
 			// Display the equipped items
 			if (pList[socket.id].head != -1) {
-				document.getElementById("equipHead").style.background = "url('"+images[(items.getItem(pList[socket.id].head)).name].src+"') no-repeat center center";
+				document.getElementById("equipHead").style.background = "url('"+images[(items.getItem(pList[socket.id].head)).name].src+"') no-repeat center center #D3AE60";
 			} else {
-				document.getElementById("equipHead").style.background = 'none';
+				document.getElementById("equipHead").style.background = "#D3AE60 url('static/head.png') no-repeat center center";
 			}
 			if (pList[socket.id].body != -1) {
-				document.getElementById("equipBody").style.background = "url('"+images[(items.getItem(pList[socket.id].body)).name].src+"') no-repeat center center";
+				document.getElementById("equipBody").style.background = "url('"+images[(items.getItem(pList[socket.id].body)).name].src+"') no-repeat center center #D3AE60";
 			} else {
-				document.getElementById("equipBody").style.background = 'none';
+				document.getElementById("equipBody").style.background = "#D3AE60 url('static/body.png') no-repeat center center";
 			}
 			if (pList[socket.id].hand != -1) {
-				document.getElementById("equipHand").style.background = "url('"+images[(items.getItem(pList[socket.id].hand)).name].src+"') no-repeat center center";
+				document.getElementById("equipHand").style.background = "url('"+images[(items.getItem(pList[socket.id].hand)).name].src+"') no-repeat center center #D3AE60";
 			} else {
-				document.getElementById("equipHand").style.background = 'none';
+				document.getElementById("equipHand").style.background = "#D3AE60 url('static/hand.png') no-repeat center center";
 			}
 
 			//debugMsg("im gay  just updated = " + self.justUpdated);
@@ -281,8 +281,10 @@ Inventory = function() {
 				debugMsg("just updated inventory");
 				var string = "";
 				for (var i = 0; i < pList[socket.id].invent.length; i++) {
-					string += "<button onclick=\"equip("+pList[socket.id].invent[i]+")\" style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[(items.getItem(pList[socket.id].invent[i])).name].src+"')\"></button>";
+					string += "<button onclick=\"equip("+pList[socket.id].invent[i]+")\" style=\"cursor: pointer; border: 2px solid black; height: 100px; width: 100px;background:#D3AE60 url('"+images[(items.getItem(pList[socket.id].invent[i])).name].src+"') no-repeat center center;\"></button>";
 				}
+
+				string += "<div style=\"bottom:0px;position:absolute;font-size:20px;\">Inventory</div>";
 
 				document.getElementById("inventory").innerHTML = string;
 				self.justUpdated = false;
@@ -367,9 +369,11 @@ Shop = function(x, y, width, height, img) {
 
 			var string = "";
 			for (var i = 0; i < self.inventory.length; i++) {
-				string += "<button style=\"cursor: pointer; border: 2px solid black; height: 50px; width: 50px; background-image: url('"+images[(items.getItem(i)).name].src+
-				"');\" onclick=\"buyItem("+i+")\">"+self.getPrice(i)+"</button>";
+				string += "<button style=\"cursor: pointer; border: 2px solid black; height: 100px; width: 100px; background:#D3AE60  url('"+images[(items.getItem(i)).name].src+
+				"')  no-repeat center center;\" onclick=\"buyItem("+i+")\">"+self.getPrice(i)+"</button>";
 			}
+
+			string += "<div style=\"bottom:0px;position:absolute;font-size:20px;\">Shop</div>";
 			document.getElementById('shop').innerHTML = string;
 		}
 
