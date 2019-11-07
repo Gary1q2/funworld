@@ -369,7 +369,7 @@ Shop = function(x, y, width, height, img) {
 
 			var string = "";
 			for (var i = 0; i < self.inventory.length; i++) {
-				string += "<button style=\"cursor: pointer; border: 2px solid black; height: 100px; width: 100px; background:#D3AE60  url('"+images[(items.getItem(i)).name].src+
+				string += "<button style=\"cursor: pointer; font-size:30px; border: 2px solid black; height: 100px; width: 100px; background:#D3AE60  url('"+images[(items.getItem(i)).name].src+
 				"')  no-repeat center center;\" onclick=\"buyItem("+i+")\">"+self.getPrice(i)+"</button>";
 			}
 

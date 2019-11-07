@@ -122,7 +122,7 @@ socket.on('money', function(data) {
 
 // Mouse over different objects
 document.getElementById('ui').addEventListener("mousemove", function(event) {
-
+	debugMsg('mouse movee');
 	// Only run this after playerList initialised
 	if (pList.length > 0) {
 
@@ -194,7 +194,7 @@ function gameLoop() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.drawImage(images["bg"], 0, 0);
 
-	//testAnim.update();
+	testAnim.update();
 
 
 	fishArea.update();

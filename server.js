@@ -58,7 +58,7 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 	self.lastMsg = "";    // Stores last message sent by player
 	self.lastMsgTime = 0; // Timer for last message sent
 
-	self.fishingTime = gameTick * 2;       // 2 seconds to fish
+	self.fishingTime = gameTick * 5;       // 2 seconds to fish
 	self.fishingTimer = self.fishingTime ; // Timer for fishing
 	
 	self.punchTarget = -1;
@@ -133,11 +133,11 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 			self.fishingTimer--;
 		}
 		if (self.fishingTimer == 0) {
-			self.money += 10;
+			self.money += 2;
 			self.fishingTimer = self.fishingTime;
 
 			// Tell player to create the money animation
-			socketList[self.socket].emit('money', 10);
+			socketList[self.socket].emit('money', 2);
 		}
 	}
 
@@ -332,6 +332,7 @@ if (process.argv.length > 2) {
   give [userID] [itemID] - gives a player an item
   pList - displays the pList
   chat - displays current chat history
+  give [userID] $ [value] - gives a player money
 */
 stdin.addListener("data", function(d) {
 	var string = d.toString().trim();
@@ -378,6 +379,24 @@ stdin.addListener("data", function(d) {
 			console.log("Unknown command");
 		}
 
+	} else if (args.length == 4) {
+
+		// give [userID] $ [value]
+		if (args[0] == "give") {
+			if (args[1] in pList) {
+				if (args[2] == "$" && Number.isInteger(parseInt(args[3]))) {
+					pList[args[1]].money += parseInt(args[3]);
+					console.log("Gave ["+args[1]+"] $"+args[3]);
+				} else {
+					console.log("No $ or value not integer");
+				}
+			} else {
+				console.log("Invalid userID");
+			}
+		} else {
+			console.log("Unknown command");
+		}
+
 	} else {
 		console.log("Unknown command");
 	}
@@ -401,7 +420,7 @@ io.on('connection', function(socket) {
 
 			// Setup new player's location information
 			var player = Player(socket.id, 750, 350, data, -1, -1, playerSpeed,
-			                     "right", -1, -1, -1, [], "none", "none", 9999);
+			                     "right", -1, -1, -1, [], "none", "none", 0);
 
 			// Add new player into the server information + save socket
 			socketList[socket.id] = socket;
