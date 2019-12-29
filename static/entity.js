@@ -1,4 +1,4 @@
-/* Basic entity that literally does nothing
+/* Basic entity that just sits in the world
    -coordinates (x, y) are at the center of the image
    -width & height are the collision bounds
  */
@@ -40,37 +40,49 @@ entity = function(x, y, width, height, img) {
 	return self;
 }
 
-animation = function(x, y, width, height, img, frameRow, frameCol) {
+/* An entity with animations
+ */
+animEntity = function(x, y, width, height, img, nRow, nCol, frameSeq) {
 	var self = entity(x, y, width, height, img);
-	self.frameRow = frameRow;
-	self.frameCol = frameCol;
-	self.frameCounter = 0;
-	self.delay = 4;
 
-	var super_update = self.update;
-	self.update = function() {
-		super_update();
-		self.draw();
-	}
+	self.nRow = nRow;
+	self.nCol = nCol;
+	self.frameSeq = frameSeq;
 
-	self.draw = function() {
+	self.animIndex = 0;
+	self.animCurrFrame = 0;
+	self.animDelay = 0;
+	self.finishAnim = false;
 
-		ctx.drawImage(self.img, (self.frameCounter%self.frameCol)*(self.width/self.frameCol), 
-					 (self.frameCounter%self.frameRow)*(self.height/self.frameRow), 
-					  self.width/self.frameCol, self.height/self.frameRow, self.x, self.y,
-					  self.width/self.frameCol, self.height/self.frameRow);
-		if (self.delay > 0) {
-			self.delay--;
+
+	self.drawAnimated = function(array) {
+		self.finishAnim = false;
+
+		self.animCurrFrame = array[self.animIndex];
+
+		var xPos = (self.animCurrFrame % self.nRow) * self.img.width/self.nCol;
+		var yPos = Math.floor(self.animCurrFrame / self.nCol) * self.img.height/self.nRow;
+
+		ctx.drawImage(self.img, xPos, yPos, self.img.width/self.nCol, self.img.height/self.nRow, self.x, self.y,
+					  self.img.width/self.nCol, self.img.height/self.nRow);
+
+		debugMsg("frame = " + self.animCurrFrame);
+
+		if (self.animDelay <= 4) {
+			self.animDelay++;
 		} else {
-			self.delay = 4;
-			self.frameCounter++;
-			if (self.frameCounter == 5) {
-				self.frameCounter = 0;
+			self.animDelay = 0;
+			self.animIndex++;
+			if (self.animIndex >= array.length) {
+				self.animIndex = 0;
+
+				self.finishAnim = true;
+				debugMsg("finished animation!");
 			}
 		}
-
-
 	}
+
+
 	return self;
 }
 
@@ -122,7 +134,7 @@ movingText = function(x, y, hspd, vspd, msg, dieTime) {
 /* Player entity
  */
 Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, invent, intent, state, money) {
-	var self = entity(x, y, images["stickman"].width, images["stickman"].height, images["stickman"]);
+	var self = animEntity(x, y, images["stickman"].width/2, images["stickman"].height/2, images["stickman"], 2, 2, []);
 	self.name = name;
 	self.speed = speed;
 	self.facing = facing;
@@ -137,12 +149,19 @@ Player = function(x, y, name, xDes, yDes, speed, facing, head, body, hand, inven
 	self.lastMsg = "";
 	self.lastMsgTime = 0;
 
-	var super_update = self.update;
 	self.update = function() {
-		super_update();
+		if (self.state == "wave") {
+			self.drawAnimated([1,2,3,2,1]);
+
+			if (self.finishAnim) {
+				socket.emit("finishAnim");
+			}
+		} else {
+			self.drawAnimated([0]);
+		}
 
 		// Only draw equipment if player is not "dead"
-		if (self.state != "dead") {
+		if (self.state != "dead" && self.state != "wave") {
 			self.drawEquip();
 		}
 		self.drawName();

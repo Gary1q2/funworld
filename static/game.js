@@ -63,6 +63,7 @@ var canMove = true;       // Determine if player will move or not (double clicki
 
 var shop;
 
+var penis = false;
 
 // Initialising the canvas variable
 var canvas = document.getElementById('canvas');
@@ -122,7 +123,7 @@ socket.on('money', function(data) {
 
 // Mouse over different objects
 document.getElementById('ui').addEventListener("mousemove", function(event) {
-	debugMsg('mouse movee');
+
 	// Only run this after playerList initialised
 	if (pList.length > 0) {
 
@@ -163,7 +164,7 @@ document.getElementById('ui').addEventListener("click", function(event) {
 
 // Handling key presses
 document.onkeypress = function(event) {
-
+	debugMsg("keycode = " + event.keyCode);
 	switch (event.keyCode) {
 
 		// Press enter to send a message
@@ -173,6 +174,13 @@ document.onkeypress = function(event) {
 				socket.emit('chat', msg);
 				document.getElementById("chatbox").value = "";
 			}
+			break;
+
+		// Press w to wave
+		case 119:
+		case 87:
+			debugMsg("told server to wave");
+			socket.emit('wave');
 			break;
 	}
 }
@@ -185,7 +193,9 @@ var fishArea = entity(890, 550, images["fishArea"].width, images["fishArea"].hei
 var inventory = Inventory();
 
 
-var testAnim = animation(300, 200, images["gloveAnim"].width, images["gloveAnim"].height, images["gloveAnim"], 1, 5);
+//var testAnim = animation(300, 200, images["gloveAnim"].width, images["gloveAnim"].height, images["gloveAnim"], 1, 5);
+//var wave = animEntity(600, 400, images["stickmanWave"].width/2, images["stickmanWave"].height/2, 
+//	                  images["stickmanWave"], 2, 2, [0, 1, 2, 3]);
 
 // Game loop
 function gameLoop() {
@@ -194,8 +204,8 @@ function gameLoop() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.drawImage(images["bg"], 0, 0);
 
-	testAnim.update();
-
+	//testAnim.update();
+	//wave.drawAnimated(wave.frameSeq);
 
 	fishArea.update();
 	shop.update();

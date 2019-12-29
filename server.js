@@ -65,6 +65,7 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 	self.deadTime = gameTick * 2;     // Dead for 2 seonds
 	self.deadTimer = self.deadTime;   // Timer for counting how long dead for
 
+
 	self.update = function() {
 		self.updateMovement();
 		self.updateChatHead();
@@ -75,6 +76,14 @@ Player = function(socket, x, y, name, xDes, yDes, speed, facing, head, body, han
 		}
 	}
 
+	// Wave to the screen
+	self.wave = function() {
+		self.state = "wave";
+
+		// Stop movement
+		self.xDes = -1;
+		self.yDes = -1;
+	}
 
 	// Update player's movement
 	self.updateMovement = function() {
@@ -464,8 +473,8 @@ io.on('connection', function(socket) {
 			// CHANGE ..... its sending its current position
 			
 
-			// Only allow movement if you are not DEAD
-			if (pList[socket.id].state != "dead") {
+			// Only allow movement if you are not DEAD or waving
+			if (pList[socket.id].state != "dead" && pList[socket.id].state != "wave") {
 				var punchTarget = mouseOverPlayers(socket.id, data.clickX, data.clickY);
 
 				// Setting intent
@@ -558,6 +567,17 @@ io.on('connection', function(socket) {
 			debugMsg(pList[socket.id].name + "can't buy "+ (items.getItem(itemID)).name+ "= not enough moeny");
 		}
 	});
+
+	// Player press W to wave
+	socket.on('wave', function() {
+		debugMsg("kid waved");
+		pList[socket.id].wave();
+	}); 
+
+	socket.on('finishAnim', function() {
+		pList[socket.id].state = "none";
+	});
+	
 });
 
 
